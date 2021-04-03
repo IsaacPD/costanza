@@ -1,6 +1,9 @@
 package sound
 
 import (
+	"os/exec"
+	"strconv"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
 )
@@ -9,10 +12,15 @@ type Queue struct {
 	GuildID string
 	Session *discordgo.Session
 
-	voiceConnection *discordgo.VoiceConnection
-	tracks          []string
-	playing         string
-	currentTrack    int
+	connection   *Connection
+	tracks       []string
+	playing      string
+	currentTrack int
+}
+
+func Ffmpeg(song string) *exec.Cmd {
+	return exec.Command("ffmpeg", "-i", song, "-f", "s16le", "-ar", strconv.Itoa(FRAME_RATE), "-ac",
+		strconv.Itoa(CHANNELS), "pipe:1")
 }
 
 func NewQueue(s *discordgo.Session, guildID string) *Queue {
@@ -29,7 +37,7 @@ func (q *Queue) loadNextTrack() {
 	}
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
-	track += ""
+	q.connection.Play(Ffmpeg(track))
 }
 
 func (q *Queue) AddTrack(track string) {
@@ -37,12 +45,14 @@ func (q *Queue) AddTrack(track string) {
 }
 
 func (q *Queue) Play() {
-	if q.voiceConnection == nil {
+	if q.connection == nil {
 		vc, err := connectToFirstVoiceChannel(q.Session, q.GuildID)
 		if err != nil {
 			logrus.Errorf("Error joining voice channel: %s", err)
 		}
-		q.voiceConnection = vc
+		q.connection = &Connection{
+			voiceConnection: vc,
+		}
 	}
 
 	if q.playing != "" {

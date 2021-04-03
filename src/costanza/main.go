@@ -22,7 +22,6 @@ import (
 
 var (
 	Isaac    = "217795612169601024"
-	Amber    = "280181200574742528"
 	Costanza = "319980316309848064"
 
 	Images = "E:\\Desktop\\Stuffs\\Images"
@@ -115,7 +114,7 @@ func sendClosure(s *discordgo.Session, m *discordgo.MessageCreate) func(string) 
 
 func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	message := m.Content
-	if m.GuildID != "" {
+	if m.GuildID != "" || m.Author.ID != Isaac {
 		return false
 	}
 
@@ -168,7 +167,7 @@ func message(s *discordgo.Session, m *discordgo.MessageCreate) {
 		}
 	}
 
-	if rand.Float64() < 0.05 {
+	if rand.Float64() < 0.001 {
 		s.ChannelMessageSend(m.ChannelID, "Hello There @"+m.Author.Username)
 	}
 }
