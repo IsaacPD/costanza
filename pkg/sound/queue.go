@@ -37,7 +37,10 @@ func (q *Queue) loadNextTrack() {
 	}
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
-	q.connection.Play(Ffmpeg(track))
+	err := q.connection.Play(Ffmpeg(track))
+	if err != nil {
+		logrus.Warnf("Error playing track %s, err: %s", err)
+	}
 }
 
 func (q *Queue) AddTrack(track string) {
@@ -49,6 +52,7 @@ func (q *Queue) Play() {
 		vc, err := connectToFirstVoiceChannel(q.Session, q.GuildID)
 		if err != nil {
 			logrus.Errorf("Error joining voice channel: %s", err)
+			return
 		}
 		q.connection = &Connection{
 			voiceConnection: vc,

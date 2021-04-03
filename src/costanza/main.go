@@ -24,7 +24,7 @@ var (
 	Isaac    = "217795612169601024"
 	Costanza = "319980316309848064"
 
-	Images = "E:\\Desktop\\Stuffs\\Images"
+	Images = "/mnt/e/Desktop/Stuffs/Images"
 
 	Coordinate = regexp.MustCompile("[0-2],[0-2]")
 	Profanity  = []*regexp.Regexp{
@@ -35,16 +35,28 @@ var (
 	}
 
 	Token      string
+	Verbosity  string
 	PlayingTTT bool
 	toe        *ttt.TicTacToe
 )
 
 func init() {
 	flag.StringVar(&Token, "t", "", "Bot token")
+	flag.StringVar(&Verbosity, "v", "info", "Verbosity level")
 }
 
 func main() {
+	flag.Parse()
+	logrus.SetOutput(os.Stdout)
 	google.InitializeServices(context.Background())
+
+	lvl, err := logrus.ParseLevel(Verbosity)
+	if err != nil {
+		fmt.Printf("error parsing log level %s\n", err)
+		logrus.SetLevel(logrus.TraceLevel)
+	} else {
+		logrus.SetLevel(lvl)
+	}
 
 	if Token == "" {
 		Token = os.Getenv("COSTANZA_TOKEN")
@@ -97,12 +109,16 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		// event.getChannel().sendMessage(afterCommand(message)).complete();
 	case "send":
 		filename := util.AfterCommand(message)
-		f, err := os.Open(fmt.Sprintf("%s\\%s", Images, filename))
+		f, err := os.Open(fmt.Sprintf("%s/%s", Images, filename))
 		if err != nil {
-			logrus.Debugf("Cannot open file %s\n", filename)
+			logrus.Warnf("Cannot open file %s\n", filename)
 			return
 		}
-		s.ChannelFileSend(m.ChannelID, filename, f)
+		r, err := s.ChannelFileSend(m.ChannelID, filename, f)
+		if err != nil {
+			logrus.Warnf("Couldn't send file %s, error : %s\n", filename, err)
+		}
+		logrus.Trace(r)
 	case "translate":
 		google.Translate(sendClosure(s, m), message)
 	}
@@ -127,7 +143,7 @@ func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool
 	}
 	_, err = s.ChannelMessageSend(dm.ID, userIDAndMessage[1])
 	if err != nil {
-		logrus.Debugf("Error sending dm %s", err)
+		logrus.Warnf("Error sending dm %s", err)
 	}
 	return true
 }

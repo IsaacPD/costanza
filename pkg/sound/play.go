@@ -9,7 +9,7 @@ import (
 
 var (
 	queueMap map[string]*Queue
-	Music    = "E:\\Desktop\\Stuffs\\Music"
+	Music    = "/mnt/e/Desktop/Stuffs/Music"
 )
 
 func init() {
