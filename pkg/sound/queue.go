@@ -39,7 +39,7 @@ func (q *Queue) loadNextTrack() {
 	track := q.tracks[q.currentTrack]
 	err := q.connection.Play(Ffmpeg(track))
 	if err != nil {
-		logrus.Warnf("Error playing track %s, err: %s", err)
+		logrus.Warnf("Error playing track %s, err: %s", track, err)
 	}
 }
 
@@ -47,9 +47,11 @@ func (q *Queue) AddTrack(track string) {
 	q.tracks = append(q.tracks, track)
 }
 
-func (q *Queue) Play() {
+// Play establishes a connection in the channel where userID if it does
+// not exist and loads the next track to be played.
+func (q *Queue) Play(userID string) {
 	if q.connection == nil {
-		vc, err := connectToFirstVoiceChannel(q.Session, q.GuildID)
+		vc, err := connectToFirstVoiceChannel(q.Session, userID, q.GuildID)
 		if err != nil {
 			logrus.Errorf("Error joining voice channel: %s", err)
 			return

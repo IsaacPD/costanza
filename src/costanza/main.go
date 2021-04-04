@@ -21,9 +21,7 @@ import (
 )
 
 var (
-	Isaac    = "217795612169601024"
-	Costanza = "319980316309848064"
-
+	Isaac  = "217795612169601024"
 	Images = "/mnt/e/Desktop/Stuffs/Images"
 
 	Coordinate = regexp.MustCompile("[0-2],[0-2]")
@@ -84,7 +82,7 @@ func main() {
 func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	message := m.Content
 	command := message[1:strings.Index(message, " ")]
-	logrus.Infof("Command received %s\n", command)
+	logrus.Infof("Command received %s", command)
 
 	switch command {
 	case "listen":
@@ -111,12 +109,12 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		filename := util.AfterCommand(message)
 		f, err := os.Open(fmt.Sprintf("%s/%s", Images, filename))
 		if err != nil {
-			logrus.Warnf("Cannot open file %s\n", filename)
+			logrus.Warnf("Cannot open file %s", filename)
 			return
 		}
 		r, err := s.ChannelFileSend(m.ChannelID, filename, f)
 		if err != nil {
-			logrus.Warnf("Couldn't send file %s, error : %s\n", filename, err)
+			logrus.Warnf("Couldn't send file %s, error : %s", filename, err)
 		}
 		logrus.Trace(r)
 	case "translate":
@@ -150,10 +148,10 @@ func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool
 
 func message(s *discordgo.Session, m *discordgo.MessageCreate) {
 	message := m.Content
-	if m.Author.ID == Costanza {
+	if m.Author.ID == s.State.User.ID {
 		return
 	}
-	logrus.Tracef("Received Message {%s}\n", message)
+	logrus.Tracef("Received Message {%s}", message)
 
 	if handlePrivateMessage(s, m) {
 		return

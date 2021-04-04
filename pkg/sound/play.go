@@ -16,19 +16,20 @@ func init() {
 	queueMap = make(map[string]*Queue)
 }
 
-func connectToFirstVoiceChannel(s *discordgo.Session, guildID string) (*discordgo.VoiceConnection, error) {
-	channels, err := s.GuildChannels(guildID)
+func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*discordgo.VoiceConnection, error) {
+	guild, err := s.State.Guild(guildID)
 	if err != nil {
 		logrus.Errorf("Error getting channels for guild: %s", err)
 		return nil, err
 	}
 	var vc string
-	for _, c := range channels {
-		if c.Type == discordgo.ChannelTypeGuildVoice {
-			vc = c.ID
+	for _, state := range guild.VoiceStates {
+		if state.UserID == userID {
+			vc = state.ChannelID
 			break
 		}
 	}
+	logrus.Tracef("Voice Channel to connect to: %s", vc)
 	return s.ChannelVoiceJoin(guildID, vc, false, false)
 }
 
@@ -44,5 +45,5 @@ func Play(s *discordgo.Session, m *discordgo.MessageCreate) {
 		trackName = strings.Replace(trackName, "path", Music, 1)
 	}
 	queue.AddTrack(trackName)
-	queue.Play()
+	queue.Play(m.Author.ID)
 }
