@@ -1,6 +1,7 @@
 package sound
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -14,8 +15,8 @@ type Queue struct {
 
 	connection   *Connection
 	tracks       []string
-	playing      string
 	currentTrack int
+	isPaused     bool
 }
 
 func Ffmpeg(song string) *exec.Cmd {
@@ -37,6 +38,7 @@ func (q *Queue) loadNextTrack() {
 	}
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
+	logrus.Debugf("Now playing %s in %s", track, q.connection.voiceConnection.GuildID)
 	err := q.connection.Play(Ffmpeg(track))
 	if err != nil {
 		logrus.Warnf("Error playing track %s, err: %s", track, err)
@@ -45,6 +47,13 @@ func (q *Queue) loadNextTrack() {
 
 func (q *Queue) AddTrack(track string) {
 	q.tracks = append(q.tracks, track)
+	logrus.Debugf("Added track %v", q.tracks)
+}
+
+func (q *Queue) InsertTrack(track string) {
+	q.tracks = append(q.tracks[:q.currentTrack+2], q.tracks[q.currentTrack+1:]...)
+	q.tracks[q.currentTrack+1] = track
+	logrus.Debugf("Added track %s", q.tracks)
 }
 
 // Play establishes a connection in the channel where userID if it does
@@ -58,11 +67,48 @@ func (q *Queue) Play(userID string) {
 		}
 		q.connection = &Connection{
 			voiceConnection: vc,
+			unPause:         make(chan interface{}),
+			trackEnd:        make(chan interface{}),
 		}
 	}
 
-	if q.playing != "" {
+	if q.connection.playing {
+		logrus.Debugf("Song already playing")
+		return
+	}
+	if q.connection.isPaused {
+		logrus.Debugf("Continuing paused song")
+		q.UnPause()
 		return
 	}
 	q.loadNextTrack()
+}
+
+func (q *Queue) Skip() {
+	if q.connection == nil || !q.connection.playing {
+		return
+	}
+	q.connection.Stop()
+	q.Play("")
+}
+
+func (q *Queue) Pause() {
+	if q.connection == nil || !q.connection.playing {
+		return
+	}
+	q.isPaused = true
+	q.connection.isPaused = true
+}
+
+func (q *Queue) UnPause() {
+	if q.connection == nil || !q.connection.playing || !q.connection.isPaused {
+		return
+	}
+	q.isPaused = false
+	q.connection.isPaused = false
+	q.connection.unPause <- 1
+}
+
+func (q *Queue) String() string {
+	return fmt.Sprintf("%v", q.tracks)
 }

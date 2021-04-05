@@ -36,11 +36,13 @@ var (
 	Verbosity  string
 	PlayingTTT bool
 	toe        *ttt.TicTacToe
+	sc         chan os.Signal
 )
 
 func init() {
 	flag.StringVar(&Token, "t", "", "Bot token")
 	flag.StringVar(&Verbosity, "v", "info", "Verbosity level")
+	sc = make(chan os.Signal, 1)
 }
 
 func main() {
@@ -74,15 +76,26 @@ func main() {
 		return
 	}
 	fmt.Println("Costanza is now running 😁")
-	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 }
 
+func Log(m *discordgo.Message, err error) {
+	if err != nil {
+		logrus.Warnf("Error sending message: %s", err)
+	} else {
+		logrus.Tracef("Message sent %v", *m)
+	}
+}
+
 func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	message := m.Content
-	command := message[1:strings.Index(message, " ")]
+	command := strings.TrimSpace(message[1:])
+	if i := strings.Index(message, " "); i != -1 {
+		command = message[1:i]
+	}
 	logrus.Infof("Command received %s", command)
+	send := sendClosure(s, m)
 
 	switch command {
 	case "listen":
@@ -92,19 +105,36 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	case "play":
 		if strings.Contains(message, "ttt") {
 			if len(m.Mentions) != 1 {
-				s.ChannelMessageSend(m.ChannelID, "Too many users mentioned, please specify only one person you would like to play against.")
+				send("Too many users mentioned, please specify only one person you would like to play against.")
 				return
 			}
 			toe = ttt.New(*m.Author, *m.Mentions[0])
 			PlayingTTT = true
-			s.ChannelMessageSend(m.ChannelID, toe.String())
+			send(toe.String())
 			return
 		}
 		sound.Play(s, m)
+	case "queue":
+		if command == message[1:] {
+			sound.PrintQueue(m.ChannelID, m.GuildID)
+			return
+		}
+		sound.QueueTrack(s, m)
 	case "skip":
-		// skipTrack(event.getChannel());
+		sound.Skip(s, m.GuildID)
+	case "pause":
+		sound.Pause(m.GuildID)
+	case "unpause":
+		sound.UnPause(m.GuildID)
 	case "speak":
-		// event.getChannel().sendMessage(afterCommand(message)).complete();
+		if m.Author.ID != Isaac {
+			return
+		}
+		err := s.ChannelMessageDelete(m.ChannelID, m.ID)
+		if err != nil {
+			logrus.Warnf("Couldn't delete message %s error: %s", m.ID, err)
+		}
+		Log(s.ChannelMessageSendTTS(m.ChannelID, util.AfterCommand(message)))
 	case "send":
 		filename := util.AfterCommand(message)
 		f, err := os.Open(fmt.Sprintf("%s/%s", Images, filename))
@@ -123,7 +153,7 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func sendClosure(s *discordgo.Session, m *discordgo.MessageCreate) func(string) {
-	return func(send string) { s.ChannelMessageSend(m.ChannelID, send) }
+	return func(send string) { Log(s.ChannelMessageSend(m.ChannelID, send)) }
 }
 
 func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool {
@@ -147,11 +177,13 @@ func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool
 }
 
 func message(s *discordgo.Session, m *discordgo.MessageCreate) {
+	m.Content = strings.TrimSpace(m.Content)
 	message := m.Content
 	if m.Author.ID == s.State.User.ID {
 		return
 	}
 	logrus.Tracef("Received Message {%s}", message)
+	send := sendClosure(s, m)
 
 	if handlePrivateMessage(s, m) {
 		return
@@ -166,22 +198,23 @@ func message(s *discordgo.Session, m *discordgo.MessageCreate) {
 		var x, y int
 		fmt.Sscanf(message, "%d,%d", &x, &y)
 		result, finished := toe.Move(x, y, *m.Author)
-		s.ChannelMessageSend(m.ChannelID, result)
+		send(result)
 		PlayingTTT = !finished
 	}
 
 	if message == "Goodbye Costanza" {
-		s.ChannelMessageSend(m.ChannelID, "See you nerds later")
-		os.Exit(1)
+		send("See you nerds later")
+		sc <- os.Interrupt
+		return
 	}
 
 	for _, p := range Profanity {
 		if p.MatchString(message) {
-			s.ChannelMessageSendTTS(m.ChannelID, "Watch your profanity "+m.Author.Username)
+			send("Watch your profanity " + m.Author.Username)
 		}
 	}
 
 	if rand.Float64() < 0.001 {
-		s.ChannelMessageSend(m.ChannelID, "Hello There @"+m.Author.Username)
+		send("Hello There @" + m.Author.Username)
 	}
 }

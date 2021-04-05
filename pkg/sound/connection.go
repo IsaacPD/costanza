@@ -13,4 +13,7 @@ type Connection struct {
 	sendpcm         bool
 	stopRunning     bool
 	playing         bool
+	isPaused        bool
+	unPause         chan interface{}
+	trackEnd        chan interface{}
 }

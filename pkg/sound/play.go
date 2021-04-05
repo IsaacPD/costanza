@@ -16,6 +16,23 @@ func init() {
 	queueMap = make(map[string]*Queue)
 }
 
+// getQueue gets the queue for the given key, and creats it if doesn't exist
+// returns the queue for the corresponding key and whether it was initially present or not
+func getQueue(s *discordgo.Session, key string) (*Queue, bool) {
+	_, ok := queueMap[key]
+	if !ok && s != nil {
+		queueMap[key] = NewQueue(s, key)
+	}
+	return queueMap[key], ok
+}
+
+func getTrackPath(track string) string {
+	if strings.Contains(track, "path") {
+		return strings.Replace(track, "path", Music, 1)
+	}
+	return track
+}
+
 func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*discordgo.VoiceConnection, error) {
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
@@ -34,16 +51,45 @@ func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*
 }
 
 func Play(s *discordgo.Session, m *discordgo.MessageCreate) {
-	_, ok := queueMap[m.GuildID]
-	if !ok {
-		queueMap[m.GuildID] = NewQueue(s, m.GuildID)
-	}
-	queue := queueMap[m.GuildID]
-
-	trackName := strings.Split(m.Content, " ")[1]
-	if strings.Contains(trackName, "path") {
-		trackName = strings.Replace(trackName, "path", Music, 1)
-	}
-	queue.AddTrack(trackName)
+	queue, _ := getQueue(s, m.GuildID)
+	queue.InsertTrack(getTrackPath(strings.Split(m.Content, " ")[1]))
 	queue.Play(m.Author.ID)
+}
+
+func PrintQueue(channelID, guildID string) {
+	queue, ok := getQueue(nil, guildID)
+	if !ok {
+		return
+	}
+	queue.Session.ChannelMessageSend(channelID, queue.String())
+}
+
+func QueueTrack(s *discordgo.Session, m *discordgo.MessageCreate) {
+	queue, _ := getQueue(s, m.GuildID)
+	queue.AddTrack(getTrackPath(strings.Split(m.Content, " ")[1]))
+	queue.Play(m.Author.ID)
+}
+
+func Skip(s *discordgo.Session, guildID string) {
+	queue, ok := getQueue(s, guildID)
+	if !ok {
+		return
+	}
+	queue.Skip()
+}
+
+func Pause(guildID string) {
+	queue, ok := getQueue(nil, guildID)
+	if !ok {
+		return
+	}
+	queue.Pause()
+}
+
+func UnPause(guildID string) {
+	queue, ok := getQueue(nil, guildID)
+	if !ok {
+		return
+	}
+	queue.UnPause()
 }

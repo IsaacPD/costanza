@@ -9,6 +9,7 @@ import (
 	"os/exec"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/sirupsen/logrus"
 	"layeh.com/gopus"
 )
 
@@ -69,8 +70,13 @@ func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
 		return err
 	}
 	connection.playing = true
+	connection.isPaused = false
 	defer func() {
 		connection.playing = false
+		switch {
+		default:
+			connection.trackEnd <- 1
+		}
 	}()
 	connection.voiceConnection.Speaking(true)
 	defer connection.voiceConnection.Speaking(false)
@@ -79,6 +85,9 @@ func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
 	}
 	go connection.sendPCM(connection.voiceConnection, connection.send)
 	for {
+		if connection.isPaused {
+			<-connection.unPause
+		}
 		if connection.stopRunning {
 			ffmpeg.Process.Kill()
 			break
@@ -96,7 +105,10 @@ func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
 	return nil
 }
 
-func (connection *Connection) Stop() {
+func (connection *Connection) Stop() bool {
 	connection.stopRunning = true
 	connection.playing = false
+	logrus.Debug("Waiting for track to stop playing")
+	<-connection.trackEnd
+	return true
 }
