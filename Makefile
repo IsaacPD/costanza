@@ -7,7 +7,7 @@ GOPATH ?= $(shell go env GOPATH)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-GO_FILES = $(shell find . -type f -name '*.go' -not -path "./pkg/diag/*")
+GO_FILES = $(shell find . -type f -name '*.go')
 
 ifeq ($(GOOS),windows)
 CP = copy /y

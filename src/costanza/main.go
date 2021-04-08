@@ -16,7 +16,7 @@ import (
 
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
-	"github.com/isaacpd/costanza/pkg/sound"
+	"github.com/isaacpd/costanza/pkg/sound/player"
 	"github.com/isaacpd/costanza/pkg/util"
 )
 
@@ -101,7 +101,7 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	case "listen":
 		// connectToFirstVoiceChannel(event.getGuild().getAudioManager(), true);
 	case "back":
-		// prevTrack(event.getChannel());
+		player.Previous(m.GuildID)
 	case "play":
 		if strings.Contains(message, "ttt") {
 			if len(m.Mentions) != 1 {
@@ -113,19 +113,19 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 			send(toe.String())
 			return
 		}
-		sound.Play(s, m)
+		player.Play(s, m)
 	case "queue":
 		if command == message[1:] {
-			sound.PrintQueue(m.ChannelID, m.GuildID)
+			player.PrintQueue(m.ChannelID, m.GuildID)
 			return
 		}
-		sound.QueueTrack(s, m)
+		player.QueueTrack(s, m)
 	case "skip":
-		sound.Skip(s, m.GuildID)
+		player.Skip(s, m.GuildID)
 	case "pause":
-		sound.Pause(m.GuildID)
+		player.Pause(m.GuildID)
 	case "unpause":
-		sound.UnPause(m.GuildID)
+		player.UnPause(m.GuildID)
 	case "speak":
 		if m.Author.ID != Isaac {
 			return

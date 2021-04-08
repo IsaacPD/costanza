@@ -1,4 +1,4 @@
-package sound
+package player
 
 import (
 	"sync"

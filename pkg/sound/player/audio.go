@@ -1,4 +1,4 @@
-package sound
+package player
 
 import (
 	"bufio"
@@ -6,18 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/isaacpd/costanza/pkg/sound"
+	"github.com/isaacpd/costanza/pkg/util"
 	"github.com/sirupsen/logrus"
 	"layeh.com/gopus"
-)
-
-const (
-	CHANNELS   int = 2
-	FRAME_RATE int = 48000
-	FRAME_SIZE int = 960
-	MAX_BYTES  int = (FRAME_SIZE * 2) * 2
 )
 
 func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-chan []int16) {
@@ -31,7 +25,7 @@ func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-ch
 	defer func() {
 		connection.sendpcm = false
 	}()
-	encoder, err := gopus.NewEncoder(FRAME_RATE, CHANNELS, gopus.Audio)
+	encoder, err := gopus.NewEncoder(util.FRAME_RATE, util.CHANNELS, gopus.Audio)
 	if err != nil {
 		fmt.Println("NewEncoder error,", err)
 		return
@@ -42,7 +36,7 @@ func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-ch
 			fmt.Println("PCM channel closed")
 			return
 		}
-		opus, err := encoder.Encode(receive, FRAME_SIZE, MAX_BYTES)
+		opus, err := encoder.Encode(receive, util.FRAME_SIZE, util.MAX_BYTES)
 		if err != nil {
 			fmt.Println("Encoding error,", err)
 			return
@@ -55,17 +49,16 @@ func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-ch
 	}
 }
 
-func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
+func (connection *Connection) Play(track sound.Track) error {
 	if connection.playing {
 		return errors.New("song already playing")
 	}
 	connection.stopRunning = false
-	out, err := ffmpeg.StdoutPipe()
+	out, err := track.GetReader()
 	if err != nil {
 		return err
 	}
-	buffer := bufio.NewReaderSize(out, 16384)
-	err = ffmpeg.Start()
+	err = track.Start()
 	if err != nil {
 		return err
 	}
@@ -84,16 +77,21 @@ func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
 		connection.send = make(chan []int16, 2)
 	}
 	go connection.sendPCM(connection.voiceConnection, connection.send)
+	return connection.read(out, track)
+}
+
+func (connection *Connection) read(r io.Reader, track sound.Track) error {
+	buffer := bufio.NewReaderSize(r, 16384)
 	for {
 		if connection.isPaused {
 			<-connection.unPause
 		}
 		if connection.stopRunning {
-			ffmpeg.Process.Kill()
+			track.Stop()
 			break
 		}
-		audioBuffer := make([]int16, FRAME_SIZE*CHANNELS)
-		err = binary.Read(buffer, binary.LittleEndian, &audioBuffer)
+		audioBuffer := make([]int16, util.FRAME_SIZE*util.CHANNELS)
+		err := binary.Read(buffer, binary.LittleEndian, &audioBuffer)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil
 		}
@@ -108,6 +106,7 @@ func (connection *Connection) Play(ffmpeg *exec.Cmd) error {
 func (connection *Connection) Stop() bool {
 	connection.stopRunning = true
 	connection.playing = false
+	connection.isPaused = false
 	logrus.Debug("Waiting for track to stop playing")
 	<-connection.trackEnd
 	return true

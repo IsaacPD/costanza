@@ -1,11 +1,10 @@
-package sound
+package player
 
 import (
 	"fmt"
-	"os/exec"
-	"strconv"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/sirupsen/logrus"
 )
 
@@ -14,14 +13,9 @@ type Queue struct {
 	Session *discordgo.Session
 
 	connection   *Connection
-	tracks       []string
+	tracks       []sound.Track
 	currentTrack int
 	isPaused     bool
-}
-
-func Ffmpeg(song string) *exec.Cmd {
-	return exec.Command("ffmpeg", "-i", song, "-f", "s16le", "-ar", strconv.Itoa(FRAME_RATE), "-ac",
-		strconv.Itoa(CHANNELS), "pipe:1")
 }
 
 func NewQueue(s *discordgo.Session, guildID string) *Queue {
@@ -33,24 +27,29 @@ func NewQueue(s *discordgo.Session, guildID string) *Queue {
 }
 
 func (q *Queue) loadNextTrack() {
-	if len(q.tracks) == 0 || q.currentTrack+1 >= len(q.tracks) {
+	if len(q.tracks) == 0 || q.currentTrack+1 >= len(q.tracks) || q.connection.playing {
 		return
 	}
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
 	logrus.Debugf("Now playing %s in %s", track, q.connection.voiceConnection.GuildID)
-	err := q.connection.Play(Ffmpeg(track))
+	err := q.connection.Play(track)
 	if err != nil {
 		logrus.Warnf("Error playing track %s, err: %s", track, err)
 	}
+	q.loadNextTrack()
 }
 
-func (q *Queue) AddTrack(track string) {
+func (q *Queue) AddTrack(track sound.Track) {
 	q.tracks = append(q.tracks, track)
 	logrus.Debugf("Added track %v", q.tracks)
 }
 
-func (q *Queue) InsertTrack(track string) {
+func (q *Queue) InsertTrack(track sound.Track) {
+	if len(q.tracks) < 2 || q.currentTrack+2 >= len(q.tracks) {
+		q.AddTrack(track)
+		return
+	}
 	q.tracks = append(q.tracks[:q.currentTrack+2], q.tracks[q.currentTrack+1:]...)
 	q.tracks[q.currentTrack+1] = track
 	logrus.Debugf("Added track %s", q.tracks)
@@ -88,6 +87,15 @@ func (q *Queue) Skip() {
 	if q.connection == nil || !q.connection.playing {
 		return
 	}
+	q.connection.Stop()
+	q.Play("")
+}
+
+func (q *Queue) Prev() {
+	if q.connection == nil || !q.connection.playing {
+		return
+	}
+	q.currentTrack--
 	q.connection.Stop()
 	q.Play("")
 }
