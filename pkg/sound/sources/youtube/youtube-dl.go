@@ -23,8 +23,10 @@ type (
 		Abr      float32 `json:"abr"`
 	}
 	videoDetails struct {
-		Formats []Format `json:"formats"`
-		Title   string   `json:"title"`
+		Formats  []Format `json:"formats"`
+		Title    string   `json:"title"`
+		Uploader string   `json:"uploader"`
+		Duration int      `json:"duration"`
 	}
 )
 

@@ -1,7 +1,9 @@
 package youtube
 
 import (
+	"fmt"
 	"io"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -9,13 +11,16 @@ import (
 func NewYoutubeTrack(id string) *youtubeTrack {
 	details := getDetails(id)
 	format := getBestAudioFormat(details.Formats)
+	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", details.Duration))
 	logrus.Tracef("Best format for %s is %+v", details.Title, format)
 	dl, ffmpeg := cmd(id, format.FormatID)
 	return &youtubeTrack{
-		ID:     id,
-		Title:  details.Title,
-		ffmpeg: ffmpeg,
-		dl:     dl,
+		ID:       id,
+		Title:    details.Title,
+		Uploader: details.Uploader,
+		Length:   dur.String(),
+		ffmpeg:   ffmpeg,
+		dl:       dl,
 	}
 }
 

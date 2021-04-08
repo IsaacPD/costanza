@@ -100,9 +100,11 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	switch command {
 	case "listen":
 		// connectToFirstVoiceChannel(event.getGuild().getAudioManager(), true);
-	case "back":
+	case "b", "back":
 		player.Previous(m.GuildID)
-	case "play":
+	case "pn", "playnext":
+		player.Play(s, m)
+	case "p", "play":
 		if strings.Contains(message, "ttt") {
 			if len(m.Mentions) != 1 {
 				send("Too many users mentioned, please specify only one person you would like to play against.")
@@ -113,13 +115,9 @@ func parseMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 			send(toe.String())
 			return
 		}
-		player.Play(s, m)
-	case "queue":
-		if command == message[1:] {
-			player.PrintQueue(m.ChannelID, m.GuildID)
-			return
-		}
 		player.QueueTrack(s, m)
+	case "q", "queue":
+		player.PrintQueue(m.ChannelID, m.GuildID)
 	case "skip":
 		player.Skip(s, m.GuildID)
 	case "pause":

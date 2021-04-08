@@ -14,6 +14,9 @@ type videoRenderer struct {
 	Title struct {
 		Runs runs
 	}
+	OwnerText struct {
+		Runs runs
+	}
 	LengthText struct {
 		SimpleText string
 	}
@@ -50,9 +53,10 @@ type youtubeTrack struct {
 
 func (vr videoRenderer) toYoutubeTrack() youtubeTrack {
 	return youtubeTrack{
-		Title:  vr.Title.Runs[0].Text,
-		ID:     vr.VideoId,
-		Length: vr.LengthText.SimpleText,
+		Title:    vr.Title.Runs[0].Text,
+		Uploader: vr.OwnerText.Runs[0].Text,
+		ID:       vr.VideoId,
+		Length:   vr.LengthText.SimpleText,
 	}
 }
 
