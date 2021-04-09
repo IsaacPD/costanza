@@ -6,6 +6,7 @@ import (
 	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/isaacpd/costanza/pkg/sound/sources/local"
 	"github.com/isaacpd/costanza/pkg/sound/sources/youtube"
+	"github.com/sirupsen/logrus"
 )
 
 const Music = "/mnt/e/Desktop/Stuffs/Music"
@@ -21,6 +22,12 @@ func GetTrack(track string) sound.Track {
 	if path := getTrackPath(track); path != track {
 		return local.NewLocalTrack(path)
 	}
+	yttrack, err := youtube.NewYoutubeTrack(track)
 
-	return youtube.NewYoutubeTrack(track)
+	if err != nil {
+		logrus.Tracef("Couldn't find a youtube track, defaulting to search")
+		return nil
+	}
+
+	return yttrack
 }

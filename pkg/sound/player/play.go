@@ -72,9 +72,15 @@ func PrintQueue(channelID, guildID string) {
 
 func QueueTrack(s *discordgo.Session, m *discordgo.MessageCreate) {
 	queue, _ := getQueue(s, m.GuildID)
-	if track := autil.GetTrack(strings.Split(m.Content, " ")[1]); track != nil {
+	query := strings.SplitN(m.Content, " ", 2)[1]
+	if track := autil.GetTrack(query); track != nil {
 		queue.AddTrack(track)
 		queue.Play(m.Author.ID)
+	} else {
+		results := youtube.Search(query)
+		lim := util.Min(5, len(results))
+		s.ChannelMessageSend(m.ChannelID,
+			fmt.Sprintf("Results:\n%s", youtube.YTTracks(results[:lim])))
 	}
 }
 

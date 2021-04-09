@@ -30,16 +30,20 @@ type (
 	}
 )
 
-func getDetails(id string) videoDetails {
+func getDetails(id string) (videoDetails, error) {
 	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", id)
-	out, _ := cmd.Output()
+	out, err := cmd.Output()
+	logrus.Tracef("Command err: %s output:\n%s", err, string(out))
+	if err != nil {
+		return videoDetails{}, err
+	}
 
 	var resp videoDetails
-	err := json.Unmarshal(out, &resp)
+	err = json.Unmarshal(out, &resp)
 	if err != nil {
 		logrus.Warnf("Error unmarshalling youtube-dl json output for %s", id)
 	}
-	return resp
+	return resp, err
 }
 
 func getBestAudioFormat(formats []Format) Format {
