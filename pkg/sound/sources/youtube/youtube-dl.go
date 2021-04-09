@@ -2,12 +2,10 @@ package youtube
 
 import (
 	"encoding/json"
-	"io"
+	"fmt"
 	"os/exec"
 
 	"github.com/sirupsen/logrus"
-
-	"github.com/isaacpd/costanza/pkg/sound/sources/local"
 )
 
 const (
@@ -31,7 +29,7 @@ type (
 )
 
 func getDetails(id string) (videoDetails, error) {
-	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", id)
+	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", "youtube.com/watch?v="+id)
 	out, err := cmd.Output()
 	logrus.Tracef("Command err: %s output:\n%s", err, string(out))
 	if err != nil {
@@ -59,13 +57,7 @@ func getBestAudioFormat(formats []Format) Format {
 	return best
 }
 
-func cmd(id, formatID string) (dl *exec.Cmd, ffmpeg *exec.Cmd) {
-	dl = exec.Command("youtube-dl", "-f", formatID, "-o", "-", id)
-	ffmpeg = local.Ffmpeg("-")
-
-	r, w := io.Pipe()
-
-	dl.Stdout = w
-	ffmpeg.Stdin = r
-	return
+func cmd(id, formatID string) *exec.Cmd {
+	cmd := fmt.Sprintf("youtube-dl -f %s -o - youtube.com/watch?v=%s | ffmpeg -i - -f s16le -ar 48000 -ac 2 pipe:1", formatID, id)
+	return exec.Command("bash", "-c", cmd)
 }

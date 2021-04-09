@@ -47,8 +47,9 @@ type youtubeTrack struct {
 	ID       string
 	Length   string
 
-	dl     *exec.Cmd
-	ffmpeg *exec.Cmd
+	formatID string
+	cmd      *exec.Cmd
+	next     *exec.Cmd
 }
 
 func (vr videoRenderer) toYoutubeTrack() youtubeTrack {
@@ -69,8 +70,10 @@ type YTTracks []youtubeTrack
 func (ytt YTTracks) String() string {
 	var sb strings.Builder
 
+	sb.WriteString("```\n")
 	for _, s := range ytt {
 		fmt.Fprintln(&sb, s)
 	}
+	sb.WriteString("```")
 	return sb.String()
 }

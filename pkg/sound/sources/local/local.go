@@ -11,7 +11,8 @@ import (
 type localTrack struct {
 	Path string
 
-	cmd *exec.Cmd
+	cmd  *exec.Cmd
+	next *exec.Cmd
 }
 
 func Ffmpeg(song string) *exec.Cmd {
@@ -27,6 +28,10 @@ func NewLocalTrack(path string) *localTrack {
 }
 
 func (lt *localTrack) GetReader() (io.Reader, error) {
+	if lt.next != nil {
+		lt.cmd = lt.next
+	}
+	lt.next = Ffmpeg(lt.Path)
 	return lt.cmd.StdoutPipe()
 }
 

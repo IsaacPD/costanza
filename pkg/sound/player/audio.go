@@ -50,6 +50,12 @@ func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-ch
 }
 
 func (connection *Connection) Play(track sound.Track) error {
+	defer func() {
+		switch {
+		default:
+			connection.trackEnd <- 1
+		}
+	}()
 	if connection.playing {
 		return errors.New("song already playing")
 	}
@@ -66,17 +72,15 @@ func (connection *Connection) Play(track sound.Track) error {
 	connection.isPaused = false
 	defer func() {
 		connection.playing = false
-		switch {
-		default:
-			connection.trackEnd <- 1
-		}
+		connection.isPaused = false
+		logrus.Debugf("Finished playing %s", track)
 	}()
 	connection.voiceConnection.Speaking(true)
 	defer connection.voiceConnection.Speaking(false)
 	if connection.send == nil {
 		connection.send = make(chan []int16, 2)
+		go connection.sendPCM(connection.voiceConnection, connection.send)
 	}
-	go connection.sendPCM(connection.voiceConnection, connection.send)
 	return connection.read(out, track)
 }
 
@@ -84,15 +88,19 @@ func (connection *Connection) read(r io.Reader, track sound.Track) error {
 	buffer := bufio.NewReaderSize(r, 16384)
 	for {
 		if connection.isPaused {
+			logrus.Debug("Pausing")
 			<-connection.unPause
+			logrus.Debug("Unpaused")
 		}
 		if connection.stopRunning {
+			logrus.Debug("Stopping")
 			track.Stop()
 			break
 		}
 		audioBuffer := make([]int16, util.FRAME_SIZE*util.CHANNELS)
 		err := binary.Read(buffer, binary.LittleEndian, &audioBuffer)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			logrus.Debug("End of track")
 			return nil
 		}
 		if err != nil {
@@ -103,11 +111,7 @@ func (connection *Connection) read(r io.Reader, track sound.Track) error {
 	return nil
 }
 
-func (connection *Connection) Stop() bool {
+func (connection *Connection) Stop() {
 	connection.stopRunning = true
-	connection.playing = false
-	connection.isPaused = false
 	logrus.Debug("Waiting for track to stop playing")
-	<-connection.trackEnd
-	return true
 }

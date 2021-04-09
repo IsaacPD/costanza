@@ -37,7 +37,13 @@ func (q *Queue) loadNextTrack() {
 	if err != nil {
 		logrus.Warnf("Error playing track %s, err: %s", track, err)
 	}
-	q.loadNextTrack()
+}
+
+func (q *Queue) rotateQueue() {
+	for {
+		<-q.connection.trackEnd
+		go q.loadNextTrack()
+	}
 }
 
 func (q *Queue) AddTrack(track sound.Track) {
@@ -69,6 +75,7 @@ func (q *Queue) Play(userID string) {
 			unPause:         make(chan interface{}),
 			trackEnd:        make(chan interface{}),
 		}
+		go q.rotateQueue()
 	}
 
 	if q.connection.playing {
@@ -80,7 +87,7 @@ func (q *Queue) Play(userID string) {
 		q.UnPause()
 		return
 	}
-	q.loadNextTrack()
+	q.connection.trackEnd <- 1
 }
 
 func (q *Queue) Skip() {
@@ -88,16 +95,14 @@ func (q *Queue) Skip() {
 		return
 	}
 	q.connection.Stop()
-	q.Play("")
 }
 
 func (q *Queue) Prev() {
 	if q.connection == nil || !q.connection.playing {
 		return
 	}
-	q.currentTrack--
+	q.currentTrack -= 2
 	q.connection.Stop()
-	q.Play("")
 }
 
 func (q *Queue) Pause() {

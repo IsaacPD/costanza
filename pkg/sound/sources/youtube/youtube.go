@@ -17,30 +17,28 @@ func NewYoutubeTrack(id string) (*youtubeTrack, error) {
 	format := getBestAudioFormat(details.Formats)
 	dur, _ := time.ParseDuration(fmt.Sprintf("%ds", details.Duration))
 	logrus.Tracef("Best format for %s is %+v", details.Title, format)
-	dl, ffmpeg := cmd(id, format.FormatID)
 	return &youtubeTrack{
 		ID:       id,
 		Title:    details.Title,
 		Uploader: details.Uploader,
 		Length:   dur.String(),
-		ffmpeg:   ffmpeg,
-		dl:       dl,
+		formatID: format.FormatID,
+		cmd:      cmd(id, format.FormatID),
 	}, nil
 }
 
 func (yt *youtubeTrack) GetReader() (io.Reader, error) {
-	return yt.ffmpeg.StdoutPipe()
+	if yt.next != nil {
+		yt.cmd = yt.next
+	}
+	yt.next = cmd(yt.ID, yt.formatID)
+	return yt.cmd.StdoutPipe()
 }
 
 func (yt *youtubeTrack) Start() (err error) {
-	err = yt.dl.Start()
-	if err != nil {
-		return
-	}
-	return yt.ffmpeg.Start()
+	return yt.cmd.Start()
 }
 
 func (yt *youtubeTrack) Stop() {
-	yt.dl.Process.Kill()
-	yt.ffmpeg.Process.Kill()
+	yt.cmd.Process.Kill()
 }
