@@ -6,6 +6,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"google.golang.org/api/translate/v2"
+
+	"github.com/isaacpd/costanza/pkg/cmd"
 )
 
 var (
@@ -40,15 +42,16 @@ func isLanguage(lang string) string {
 	return ""
 }
 
-func Translate(send func(string), m string) {
+func Translate(c cmd.Context) {
+	m := c.Arg
 	begin := strings.Index(m, "(") + 1
 	end := strings.Index(m, ")")
 	params := strings.Split(m[begin:end], ",")
 	target := m[strings.Index(m[end:], "to ")+end+3:]
 	lang := isLanguage(target)
 	if lang != "" {
-		send(translateHelper(params, lang))
+		c.Send(translateHelper(params, lang))
 	} else {
-		send(target + " is not a supported language")
+		c.Send(target + " is not a supported language")
 	}
 }

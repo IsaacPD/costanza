@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/sirupsen/logrus"
+	"layeh.com/gopus"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/isaacpd/costanza/pkg/util"
-	"github.com/sirupsen/logrus"
-	"layeh.com/gopus"
 )
 
 func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-chan []int16) {

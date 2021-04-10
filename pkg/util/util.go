@@ -12,15 +12,21 @@ const (
 	FRAME_RATE int = 48000
 	FRAME_SIZE int = 960
 	MAX_BYTES  int = (FRAME_SIZE * 2) * 2
+
+	ARG_IDENTIFIER string = " "
+	COMPLETE       string = "✅"
 )
 
 var (
-	ArgIdentifier                 = " "
-	httpClient    fasthttp.Client = fasthttp.Client{}
+	httpClient fasthttp.Client = fasthttp.Client{}
 )
 
 func AfterCommand(message string) string {
-	return message[strings.Index(message, ArgIdentifier)+1:]
+	i := strings.Index(message, ARG_IDENTIFIER)
+	if i == -1 || i+1 >= len(message) {
+		return ""
+	}
+	return message[i+1:]
 }
 
 func DoWithRedirects(req *fasthttp.Request, res *fasthttp.Response) error {

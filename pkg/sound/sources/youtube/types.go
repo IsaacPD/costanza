@@ -3,7 +3,6 @@ package youtube
 import (
 	"fmt"
 	"os/exec"
-	"strings"
 )
 
 type runs []struct {
@@ -52,8 +51,8 @@ type youtubeTrack struct {
 	next     *exec.Cmd
 }
 
-func (vr videoRenderer) toYoutubeTrack() youtubeTrack {
-	return youtubeTrack{
+func (vr videoRenderer) toYoutubeTrack() *youtubeTrack {
+	return &youtubeTrack{
 		Title:    vr.Title.Runs[0].Text,
 		Uploader: vr.OwnerText.Runs[0].Text,
 		ID:       vr.VideoId,
@@ -63,17 +62,4 @@ func (vr videoRenderer) toYoutubeTrack() youtubeTrack {
 
 func (yt youtubeTrack) String() string {
 	return fmt.Sprintf("Title: %s, Duration: %s, Uploader: %s, ID: %s", yt.Title, yt.Length, yt.Uploader, yt.ID)
-}
-
-type YTTracks []youtubeTrack
-
-func (ytt YTTracks) String() string {
-	var sb strings.Builder
-
-	sb.WriteString("```\n")
-	for _, s := range ytt {
-		fmt.Fprintln(&sb, s)
-	}
-	sb.WriteString("```")
-	return sb.String()
 }

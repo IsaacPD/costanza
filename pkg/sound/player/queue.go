@@ -3,25 +3,24 @@ package player
 import (
 	"fmt"
 
-	"github.com/bwmarrin/discordgo"
-	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/sirupsen/logrus"
+
+	"github.com/isaacpd/costanza/pkg/cmd"
+	"github.com/isaacpd/costanza/pkg/sound"
 )
 
 type Queue struct {
-	GuildID string
-	Session *discordgo.Session
+	cmd.Context
 
 	connection   *Connection
-	tracks       []sound.Track
+	tracks       sound.TrackList
 	currentTrack int
 	isPaused     bool
 }
 
-func NewQueue(s *discordgo.Session, guildID string) *Queue {
+func NewQueue(c cmd.Context, guildID string) *Queue {
 	return &Queue{
-		GuildID:      guildID,
-		Session:      s,
+		Context:      c,
 		currentTrack: -1,
 	}
 }
@@ -33,6 +32,7 @@ func (q *Queue) loadNextTrack() {
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
 	logrus.Debugf("Now playing %s in %s", track, q.connection.voiceConnection.GuildID)
+	q.Send(fmt.Sprintf("Now playing %s", track))
 	err := q.connection.Play(track)
 	if err != nil {
 		logrus.Warnf("Error playing track %s, err: %s", track, err)
@@ -46,19 +46,22 @@ func (q *Queue) rotateQueue() {
 	}
 }
 
-func (q *Queue) AddTrack(track sound.Track) {
-	q.tracks = append(q.tracks, track)
-	logrus.Debugf("Added track %v", q.tracks)
+func (q *Queue) AddTracks(track sound.TrackList) {
+	q.tracks = append(q.tracks, track...)
+	logrus.Tracef("Added tracks %v", track)
+	if len(track) > 1 {
+		q.Send(fmt.Sprintf("Queued %d tracks", len(track)))
+	}
 }
 
 func (q *Queue) InsertTrack(track sound.Track) {
 	if len(q.tracks) < 2 || q.currentTrack+2 >= len(q.tracks) {
-		q.AddTrack(track)
+		q.AddTracks([]sound.Track{track})
 		return
 	}
 	q.tracks = append(q.tracks[:q.currentTrack+2], q.tracks[q.currentTrack+1:]...)
 	q.tracks[q.currentTrack+1] = track
-	logrus.Debugf("Added track %s", q.tracks)
+	logrus.Tracef("Added track %s", track)
 }
 
 // Play establishes a connection in the channel where userID if it does
@@ -98,11 +101,14 @@ func (q *Queue) Skip() {
 }
 
 func (q *Queue) Prev() {
-	if q.connection == nil || !q.connection.playing {
+	if q.connection == nil || q.currentTrack-2 < -1 {
 		return
 	}
 	q.currentTrack -= 2
 	q.connection.Stop()
+	if !q.connection.playing {
+		q.connection.trackEnd <- 1
+	}
 }
 
 func (q *Queue) Pause() {
@@ -123,5 +129,5 @@ func (q *Queue) UnPause() {
 }
 
 func (q *Queue) String() string {
-	return fmt.Sprintf("%v", q.tracks)
+	return q.tracks.String()
 }

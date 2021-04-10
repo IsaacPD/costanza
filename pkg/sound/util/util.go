@@ -3,10 +3,11 @@ package util
 import (
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/isaacpd/costanza/pkg/sound/sources/local"
 	"github.com/isaacpd/costanza/pkg/sound/sources/youtube"
-	"github.com/sirupsen/logrus"
 )
 
 const Music = "/mnt/e/Desktop/Stuffs/Music"
@@ -18,7 +19,7 @@ func getTrackPath(track string) string {
 	return track
 }
 
-func GetTrack(track string) sound.Track {
+func GetTrack(track string) sound.TrackList {
 	if path := getTrackPath(track); path != track {
 		return local.NewLocalTrack(path)
 	}
@@ -29,5 +30,5 @@ func GetTrack(track string) sound.Track {
 		return nil
 	}
 
-	return yttrack
+	return []sound.Track{yttrack}
 }

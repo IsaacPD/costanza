@@ -2,14 +2,22 @@ package ttt
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/isaacpd/costanza/pkg/cmd"
 )
 
 var (
 	p1 = "❌"
 	p2 = "⭕"
+
+	playingTTT bool
+	toe        *TicTacToe
+
+	Coordinate = regexp.MustCompile("[0-2],[0-2]")
 )
 
 type TicTacToe struct {
@@ -24,6 +32,24 @@ func New(p1, p2 discordgo.User) *TicTacToe {
 	ttt.player1 = p1
 	ttt.player2 = p2
 	return &ttt
+}
+
+func HandleTTT(c cmd.Context) bool {
+	if playingTTT && toe.IsPlaying(*c.Author) && Coordinate.MatchString(c.Message.Content) {
+		var x, y int
+		fmt.Sscanf(c.Message.Content, "%d,%d", &x, &y)
+		result, finished := toe.Move(x, y, *c.Author)
+		c.Send(result)
+		playingTTT = !finished
+		return true
+	}
+	return false
+}
+
+func Start(c cmd.Context) {
+	toe = New(*c.Author, *c.Message.Mentions[0])
+	playingTTT = true
+	c.Send(toe.String())
 }
 
 func (t *TicTacToe) Move(x, y int, player discordgo.User) (string, bool) {
@@ -91,7 +117,7 @@ func (t *TicTacToe) String() string {
 	var result strings.Builder
 	for _, row := range t.grid {
 		for _, col := range row {
-			if col == " " {
+			if col == "" {
 				fmt.Fprintf(&result, "%s | ", "🟥")
 			} else {
 				fmt.Fprintf(&result, "%s | ", col)
