@@ -35,7 +35,7 @@ func NewLocalTrack(path string) sound.TrackList {
 	}
 	var tl sound.TrackList
 	if !f.IsDir() {
-		tl = append(tl, createLocalTrack(f.Name(), path))
+		tl = append(tl, createLocalTrack(path, f.Name()))
 		return tl
 	}
 	names := getDirChildrenNames(path)

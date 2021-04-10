@@ -2,15 +2,19 @@ package player
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/isaacpd/costanza/pkg/cmd"
 	"github.com/isaacpd/costanza/pkg/sound"
+	"github.com/isaacpd/costanza/pkg/util"
 )
 
+const PAGE_SIZE = 5
+
 type Queue struct {
-	cmd.Context
+	*cmd.Context
 
 	connection   *Connection
 	tracks       sound.TrackList
@@ -18,9 +22,9 @@ type Queue struct {
 	isPaused     bool
 }
 
-func NewQueue(c cmd.Context, guildID string) *Queue {
+func NewQueue(c cmd.Context) *Queue {
 	return &Queue{
-		Context:      c,
+		Context:      &c,
 		currentTrack: -1,
 	}
 }
@@ -31,7 +35,7 @@ func (q *Queue) loadNextTrack() {
 	}
 	q.currentTrack++
 	track := q.tracks[q.currentTrack]
-	logrus.Debugf("Now playing %s in %s", track, q.connection.voiceConnection.GuildID)
+	logrus.Debugf("Now playing: %s in %s", track, q.connection.voiceConnection.GuildID)
 	q.Send(fmt.Sprintf("Now playing %s", track))
 	err := q.connection.Play(track)
 	if err != nil {
@@ -129,5 +133,32 @@ func (q *Queue) UnPause() {
 }
 
 func (q *Queue) String() string {
-	return q.tracks.String()
+	return q.tracks.String(0)
+}
+
+func (_ *Queue) GetPageNum(text string) int {
+	lines := strings.Split(text, "\n")
+	last := lines[len(lines)-2]
+
+	var i int
+	_, err := fmt.Sscanf(last, "%d)", &i)
+	if err != nil {
+		return -1
+	}
+	i--
+
+	return i / PAGE_SIZE
+}
+
+func (q *Queue) GetPage(num int) string {
+	start := PAGE_SIZE * num
+	if start >= len(q.tracks) {
+		start = 0
+	}
+	if start < 0 {
+		start = (len(q.tracks) - 1) / PAGE_SIZE
+	}
+	end := start + PAGE_SIZE
+
+	return q.tracks[start:util.Min(end, len(q.tracks))].String(start)
 }

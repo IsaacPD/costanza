@@ -48,7 +48,7 @@ func NewCmd(names Names, handler Handler) Command {
 func (c Command) String() string {
 	var sb strings.Builder
 
-	sb.WriteString("Name: %s" + c.Names[0])
+	sb.WriteString("Name: " + c.Names[0])
 	if len(c.Names) > 1 {
 		fmt.Fprintf(&sb, " | Aliases: %s", c.Names[1:])
 	}

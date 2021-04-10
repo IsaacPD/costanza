@@ -15,7 +15,16 @@ import (
 )
 
 var (
-	queueMap map[string]*Queue
+	queueMap  map[string]*Queue
+	PAGE_NEXT = "🔼"
+	PAGE_PREV = "🔽"
+
+	emojiMap = map[string]int{
+		"🔼": 1,
+		"🔽": -1,
+		"⬆": 1,
+		"⬇": -1,
+	}
 )
 
 func init() {
@@ -24,12 +33,12 @@ func init() {
 
 // getQueue gets the queue for the given key, and creates it if doesn't exist
 // returns the queue for the corresponding key and whether it was initially present or not
-func getQueue(c cmd.Context, key string, callback func(q *Queue)) {
-	_, ok := queueMap[key]
+func getQueue(c cmd.Context, callback func(q *Queue)) {
+	_, ok := queueMap[c.GuildID]
 	if !ok {
-		queueMap[key] = NewQueue(c, key)
+		queueMap[c.GuildID] = NewQueue(c)
 	}
-	callback(queueMap[key])
+	callback(queueMap[c.GuildID])
 }
 
 func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*discordgo.VoiceConnection, error) {
@@ -54,7 +63,7 @@ func markComplete(c cmd.Context) {
 }
 
 func Play(c cmd.Context) {
-	getQueue(c, c.GuildID, func(queue *Queue) {
+	getQueue(c, func(queue *Queue) {
 		if track := autil.GetTrack(c.Arg); track != nil {
 			queue.InsertTrack(track[0])
 			queue.Play(c.Author.ID)
@@ -68,8 +77,11 @@ func Play(c cmd.Context) {
 }
 
 func PrintQueue(c cmd.Context) {
-	getQueue(c, c.GuildID, func(q *Queue) {
-		c.Send(q.String())
+	getQueue(c, func(q *Queue) {
+		m, err := c.Session.ChannelMessageSend(c.ChannelID, q.GetPage(0))
+		c.Log(m, err)
+		_ = c.Session.MessageReactionAdd(c.ChannelID, m.ID, PAGE_PREV)
+		_ = c.Session.MessageReactionAdd(c.ChannelID, m.ID, PAGE_NEXT)
 	})
 }
 
@@ -78,7 +90,7 @@ func QueueTrack(c cmd.Context) {
 		UnPause(c)
 		return
 	}
-	getQueue(c, c.GuildID, func(queue *Queue) {
+	getQueue(c, func(queue *Queue) {
 		if tracks := autil.GetTrack(c.Arg); tracks != nil {
 			queue.AddTracks(tracks)
 			queue.Play(c.Author.ID)
@@ -92,28 +104,28 @@ func QueueTrack(c cmd.Context) {
 }
 
 func Previous(c cmd.Context) {
-	getQueue(c, c.GuildID, func(q *Queue) {
+	getQueue(c, func(q *Queue) {
 		q.Prev()
 		markComplete(c)
 	})
 }
 
 func Skip(c cmd.Context) {
-	getQueue(c, c.GuildID, func(q *Queue) {
+	getQueue(c, func(q *Queue) {
 		q.Skip()
 		markComplete(c)
 	})
 }
 
 func Pause(c cmd.Context) {
-	getQueue(c, c.GuildID, func(q *Queue) {
+	getQueue(c, func(q *Queue) {
 		q.Pause()
 		markComplete(c)
 	})
 }
 
 func UnPause(c cmd.Context) {
-	getQueue(c, c.GuildID, func(q *Queue) {
+	getQueue(c, func(q *Queue) {
 		q.UnPause()
 		markComplete(c)
 	})
@@ -128,4 +140,45 @@ func ListDir(c cmd.Context) {
 		out, _ = exec.Command("tree", path).Output()
 	}
 	c.Send(string(out))
+}
+
+func changePage(c cmd.Context, m *discordgo.Message, emoji string) {
+	getQueue(c, func(q *Queue) {
+		pageNum := q.GetPageNum(m.Content)
+		pageNum += emojiMap[emoji]
+		c.Session.ChannelMessageEdit(m.ChannelID, m.ID, q.GetPage(pageNum))
+	})
+}
+
+func reactHandler(s *discordgo.Session, m *discordgo.MessageReaction) {
+	if m.UserID == s.State.User.ID {
+		return
+	}
+	message, err := s.ChannelMessage(m.ChannelID, m.MessageID)
+	if err != nil {
+		logrus.Warnf("error getting reacted message %s", err)
+		return
+	}
+	if _, ok := emojiMap[m.Emoji.Name]; !ok || message.Author.ID != s.State.User.ID {
+		return
+	}
+
+	var isPaginated bool
+	for _, reaction := range message.Reactions {
+		isPaginated = isPaginated || reaction.Me
+	}
+	if !isPaginated {
+		return
+	}
+
+	ctx := cmd.Context{Session: s, GuildID: m.GuildID}
+	changePage(ctx, message, m.Emoji.Name)
+}
+
+func MessageReact(s *discordgo.Session, m *discordgo.MessageReactionAdd) {
+	reactHandler(s, m.MessageReaction)
+}
+
+func MessageRemove(s *discordgo.Session, m *discordgo.MessageReactionRemove) {
+	reactHandler(s, m.MessageReaction)
 }

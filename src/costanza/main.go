@@ -13,6 +13,7 @@ import (
 
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/router"
+	"github.com/isaacpd/costanza/pkg/sound/player"
 )
 
 var (
@@ -49,6 +50,8 @@ func main() {
 	}
 
 	discord.AddHandler(router.HandleMessage)
+	discord.AddHandler(player.MessageReact)
+	discord.AddHandler(player.MessageRemove)
 	discord.Identify.Intents = discordgo.IntentsAll
 
 	err = discord.Open()
