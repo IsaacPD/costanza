@@ -107,6 +107,9 @@ func (connection *Connection) read(r io.Reader, track sound.Track) error {
 		if err != nil {
 			return err
 		}
+		if connection.send == nil {
+			return nil
+		}
 		connection.send <- audioBuffer
 	}
 	return nil

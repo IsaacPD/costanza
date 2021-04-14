@@ -59,5 +59,5 @@ func getBestAudioFormat(formats []Format) Format {
 
 func cmd(id, formatID string) *exec.Cmd {
 	cmd := fmt.Sprintf("youtube-dl -f %s -o - youtube.com/watch?v=%s | ffmpeg -i - -f s16le -ar 48000 -ac 2 pipe:1", formatID, id)
-	return exec.Command("bash", "-c", cmd)
+	return exec.Command("sh", "-c", cmd)
 }

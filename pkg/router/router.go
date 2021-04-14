@@ -190,16 +190,28 @@ func Log(m *discordgo.Message, err error) {
 
 func handlePrivateMessage(s *discordgo.Session, m *discordgo.MessageCreate) bool {
 	message := m.Content
-	if m.GuildID != "" || m.Author.ID != Isaac {
+
+	if m.GuildID != "" {
+		return false
+	}
+	logrus.Infof("Received Private Message %s: {%s}\n", m.Author.Username, message)
+	if m.Author.ID != Isaac {
 		return false
 	}
 
-	logrus.Infof("Received Private Message {%s}\n", message)
-	userIDAndMessage := strings.Split(util.AfterCommand(message), ":")
+	userIDAndMessage := strings.Split(message, ":")
 	dm, err := s.UserChannelCreate(userIDAndMessage[0])
+
 	if err != nil {
 		logrus.Errorf("Couldn't create channel %s", err)
 		return false
+	}
+	if userIDAndMessage[1] == "" {
+		messages, _ := s.ChannelMessages(dm.ID, 5, "", "", "")
+		for _, m := range messages {
+			logrus.Infof("%s: %s", m.Author.Username, m.Content)
+		}
+		return true
 	}
 	_, err = s.ChannelMessageSend(dm.ID, userIDAndMessage[1])
 	if err != nil {

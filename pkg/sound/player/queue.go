@@ -71,7 +71,8 @@ func (q *Queue) InsertTrack(track sound.Track) {
 // Play establishes a connection in the channel where userID if it does
 // not exist and loads the next track to be played.
 func (q *Queue) Play(userID string) {
-	if q.connection == nil {
+	_, err := q.Session.State.VoiceState(q.GuildID, q.Session.State.User.ID)
+	if q.connection == nil || err != nil {
 		vc, err := connectToFirstVoiceChannel(q.Session, userID, q.GuildID)
 		if err != nil {
 			logrus.Errorf("Error joining voice channel: %s", err)
@@ -133,7 +134,7 @@ func (q *Queue) UnPause() {
 }
 
 func (q *Queue) String() string {
-	return q.tracks.String(0)
+	return q.tracks.String()
 }
 
 func (_ *Queue) GetPageNum(text string) int {
@@ -156,9 +157,9 @@ func (q *Queue) GetPage(num int) string {
 		start = 0
 	}
 	if start < 0 {
-		start = (len(q.tracks) - 1) / PAGE_SIZE
+		start = ((len(q.tracks) - 1) / PAGE_SIZE) * PAGE_SIZE
 	}
 	end := start + PAGE_SIZE
 
-	return q.tracks[start:util.Min(end, len(q.tracks))].String(start)
+	return q.tracks[start:util.Min(end, len(q.tracks))].StringWithOffset(start)
 }

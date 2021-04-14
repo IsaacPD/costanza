@@ -14,7 +14,11 @@ type Track interface {
 
 type TrackList []Track
 
-func (tl TrackList) String(offset int) string {
+func (tl TrackList) String() string {
+	return tl.StringWithOffset(0)
+}
+
+func (tl TrackList) StringWithOffset(offset int) string {
 	var sb strings.Builder
 
 	sb.WriteString("```nim\n")
