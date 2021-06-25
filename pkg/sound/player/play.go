@@ -41,11 +41,11 @@ func getQueue(c cmd.Context, callback func(q *Queue)) {
 	callback(queueMap[c.GuildID])
 }
 
-func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*discordgo.VoiceConnection, error) {
+func getChannelWithUser(s *discordgo.Session, userID, guildID string) string {
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
 		logrus.Errorf("Error getting channels for guild: %s", err)
-		return nil, err
+		return ""
 	}
 	var vc string
 	for _, state := range guild.VoiceStates {
@@ -54,8 +54,7 @@ func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*
 			break
 		}
 	}
-	logrus.Tracef("Voice Channel to connect to: %s", vc)
-	return s.ChannelVoiceJoin(guildID, vc, false, false)
+	return vc
 }
 
 func markComplete(c cmd.Context) {
@@ -128,6 +127,12 @@ func UnPause(c cmd.Context) {
 	getQueue(c, func(q *Queue) {
 		q.UnPause()
 		markComplete(c)
+	})
+}
+
+func Debug(c cmd.Context) {
+	getQueue(c, func(q *Queue) {
+		c.Send(fmt.Sprintf("```go\nqueue: {%+v}\nconnection: {%+v}\n```", *q, *q.connection))
 	})
 }
 

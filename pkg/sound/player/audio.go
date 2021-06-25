@@ -34,16 +34,16 @@ func (connection *Connection) sendPCM(voice *discordgo.VoiceConnection, pcm <-ch
 	for {
 		receive, ok := <-pcm
 		if !ok {
-			fmt.Println("PCM channel closed")
+			logrus.Debug("PCM channel closed")
 			return
 		}
 		opus, err := encoder.Encode(receive, util.FRAME_SIZE, util.MAX_BYTES)
 		if err != nil {
-			fmt.Println("Encoding error,", err)
+			logrus.Debug("Encoding error,", err)
 			return
 		}
 		if !voice.Ready || voice.OpusSend == nil {
-			fmt.Printf("Discordgo not ready for opus packets. %+v : %+v", voice.Ready, voice.OpusSend)
+			logrus.Debugf("Discordgo not ready for opus packets. %+v : %+v", voice.Ready, voice.OpusSend)
 			return
 		}
 		voice.OpusSend <- opus
@@ -80,8 +80,12 @@ func (connection *Connection) Play(track sound.Track) error {
 	defer connection.voiceConnection.Speaking(false)
 	if connection.send == nil {
 		connection.send = make(chan []int16, 2)
-		go connection.sendPCM(connection.voiceConnection, connection.send)
 	}
+	defer func() {
+		close(connection.send)
+		connection.send = nil
+	}()
+	go connection.sendPCM(connection.voiceConnection, connection.send)
 	return connection.read(out, track)
 }
 
@@ -107,9 +111,7 @@ func (connection *Connection) read(r io.Reader, track sound.Track) error {
 		if err != nil {
 			return err
 		}
-		if connection.send == nil {
-			return nil
-		}
+
 		connection.send <- audioBuffer
 	}
 	return nil

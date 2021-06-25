@@ -144,6 +144,7 @@ func RegisterCommands() {
 	AddCommand(NewCmd(cmd.Names{"tree"}, player.ListDir))
 
 	// Misc
+	AddCommand(NewCmd(cmd.Names{"debug"}, player.Debug))
 	AddCommand(NewCmd(cmd.Names{"translate"}, google.Translate))
 	AddCommand(NewCmd(cmd.Names{"listen"}, nil))
 	AddCommand(NewCmd(cmd.Names{"ttt", "tictactoe"}, func(c cmd.Context) {

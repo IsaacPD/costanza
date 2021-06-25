@@ -31,7 +31,6 @@ type (
 func getDetails(id string) (videoDetails, error) {
 	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", "youtube.com/watch?v="+id)
 	out, err := cmd.Output()
-	logrus.Tracef("Command err: %s output:\n%s", err, string(out))
 	if err != nil {
 		return videoDetails{}, err
 	}

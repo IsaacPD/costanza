@@ -14,6 +14,8 @@ type Connection struct {
 	stopRunning     bool
 	playing         bool
 	isPaused        bool
+	pcmClosed       chan interface{}
+	endConnection   chan interface{}
 	unPause         chan interface{}
 	trackEnd        chan interface{}
 }

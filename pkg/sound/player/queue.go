@@ -3,6 +3,7 @@ package player
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -45,8 +46,13 @@ func (q *Queue) loadNextTrack() {
 
 func (q *Queue) rotateQueue() {
 	for {
-		<-q.connection.trackEnd
-		go q.loadNextTrack()
+		select {
+		case <-q.connection.trackEnd:
+			go q.loadNextTrack()
+		case <-q.connection.endConnection:
+			logrus.Debug("Connection ended")
+			return
+		}
 	}
 }
 
@@ -71,19 +77,45 @@ func (q *Queue) InsertTrack(track sound.Track) {
 // Play establishes a connection in the channel where userID if it does
 // not exist and loads the next track to be played.
 func (q *Queue) Play(userID string) {
-	_, err := q.Session.State.VoiceState(q.GuildID, q.Session.State.User.ID)
-	if q.connection == nil || err != nil {
-		vc, err := connectToFirstVoiceChannel(q.Session, userID, q.GuildID)
+	vcID := getChannelWithUser(q.Session, userID, q.GuildID)
+	if vcID == "" {
+		q.Send("Please join a voice channel to make a request")
+		return
+	}
+
+	if q.connection == nil || vcID != q.connection.voiceConnection.ChannelID {
+		vc, err := q.Session.ChannelVoiceJoin(q.GuildID, vcID, false, false)
 		if err != nil {
 			logrus.Errorf("Error joining voice channel: %s", err)
 			return
 		}
-		q.connection = &Connection{
-			voiceConnection: vc,
-			unPause:         make(chan interface{}),
-			trackEnd:        make(chan interface{}),
+		if q.connection != nil {
+			logrus.Debug("Sending request to end connection")
+			q.connection.endConnection <- 1
+			q.connection.Stop()
+			// <-q.connection.pcmClosed
+			q.connection.voiceConnection = vc
+			time.Sleep(1 * time.Second)
+		} else {
+			q.connection = &Connection{
+				voiceConnection: vc,
+				unPause:         make(chan interface{}),
+				trackEnd:        make(chan interface{}),
+				endConnection:   make(chan interface{}),
+				pcmClosed:       make(chan interface{}),
+			}
 		}
+		logrus.Tracef("Starting queue rotation")
 		go q.rotateQueue()
+	}
+	_, err := q.Session.State.VoiceState(q.GuildID, q.Session.State.User.ID)
+	if err != nil {
+		logrus.Warnf("Currently not in a voice connection. Attempting to rejoin")
+		_, err = q.Session.ChannelVoiceJoin(q.GuildID, vcID, false, false)
+		if err != nil {
+			logrus.Errorf("Could not rejoin voice channel %s", err)
+			return
+		}
 	}
 
 	if q.connection.playing {
@@ -95,6 +127,7 @@ func (q *Queue) Play(userID string) {
 		q.UnPause()
 		return
 	}
+	logrus.Tracef("Triggering start of next track")
 	q.connection.trackEnd <- 1
 }
 
