@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
@@ -20,9 +21,10 @@ import (
 var NewCmd = cmd.NewCmd
 
 const (
-	Isaac  = "217795612169601024"
-	Images = "/mnt/e/Desktop/Stuffs/Images"
-	PREFIX = "~"
+	Isaac      = "217795612169601024"
+	Images     = "/mnt/e/Desktop/Stuffs/Images"
+	PREFIX     = "~"
+	TimeLayout = "2006 Jan 2"
 )
 
 var (
@@ -171,9 +173,47 @@ func RegisterCommands() {
 		}
 		Log(c.Session.ChannelMessageSendTTS(c.ChannelID, c.Arg))
 	}))
+	AddCommand(NewCmd(cmd.Names{"themepicker", "tp"}, func(c cmd.Context) {
+		if c.Author.ID != Isaac {
+			return
+		}
 
+		t, err := time.Parse(TimeLayout, c.Arg)
+		if err != nil {
+			Log(c.Session.ChannelMessageSend(c.ChannelID, "Invalid date, Please format it as follows: "+TimeLayout))
+			return
+		}
+		users := randomUserList(c, t.UnixNano())
+		var message strings.Builder
+		currentMonth := t.Month() + 1
+		for _, u := range users {
+			fmt.Fprintf(&message, "%s %s\n", currentMonth.String(), u.Mention())
+			currentMonth = (currentMonth + 1) % 13
+			if currentMonth == 0 {
+				currentMonth = 1
+			}
+		}
+		Log(c.Session.ChannelMessageSend(c.ChannelID, message.String()))
+	}))
 	AddCommand(helpCommand())
 	AddCommand(defaultCommand())
+}
+
+func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
+	r := rand.New(rand.NewSource(seed))
+	var userList []*discordgo.User
+	members, _ := c.Session.GuildMembers(c.GuildID, "", 1000)
+	for _, m := range members {
+		if m.User.Bot {
+			continue
+		}
+		userList = append(userList, m.User)
+	}
+	for i := range userList {
+		j := r.Intn(i + 1)
+		userList[i], userList[j] = userList[j], userList[i]
+	}
+	return userList
 }
 
 func sendClosure(s *discordgo.Session, m *discordgo.MessageCreate) func(string) {

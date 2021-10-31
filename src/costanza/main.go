@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -44,6 +45,7 @@ func main() {
 	if Token == "" {
 		Token = os.Getenv("COSTANZA_TOKEN")
 	}
+	Token = strings.TrimSpace(Token)
 	discord, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("Error creating bot:", err)
