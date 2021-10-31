@@ -8,6 +8,7 @@ require (
 	github.com/klauspost/compress v1.11.13 // indirect
 	github.com/sirupsen/logrus v1.8.1
 	github.com/valyala/fasthttp v1.23.0
+	github.com/zmb3/spotify v1.3.0
 	google.golang.org/api v0.43.0
 	layeh.com/gopus v0.0.0-20161224163843-0ebf989153aa
 )

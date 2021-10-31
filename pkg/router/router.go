@@ -14,6 +14,7 @@ import (
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/sound/player"
+	"github.com/isaacpd/costanza/pkg/sound/spotify"
 	"github.com/isaacpd/costanza/pkg/util"
 )
 
@@ -142,6 +143,8 @@ func RegisterCommands() {
 	AddCommand(NewCmd(cmd.Names{"pause"}, player.Pause))
 	AddCommand(NewCmd(cmd.Names{"unpause"}, player.UnPause))
 	AddCommand(NewCmd(cmd.Names{"tree"}, player.ListDir))
+	AddCommand(NewCmd(cmd.Names{"follow", "f"}, player.Follow))
+	AddCommand(NewCmd(cmd.Names{"spotify", "auth"}, spotify.AuthenticateSpotify))
 
 	// Misc
 	AddCommand(NewCmd(cmd.Names{"translate"}, google.Translate))

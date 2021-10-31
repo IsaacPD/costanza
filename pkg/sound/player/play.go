@@ -3,6 +3,7 @@ package player
 import (
 	"fmt"
 	"os/exec"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
@@ -10,21 +11,27 @@ import (
 	"github.com/isaacpd/costanza/pkg/cmd"
 	"github.com/isaacpd/costanza/pkg/sound"
 	"github.com/isaacpd/costanza/pkg/sound/sources/youtube"
+	"github.com/isaacpd/costanza/pkg/sound/spotify"
 	autil "github.com/isaacpd/costanza/pkg/sound/util"
 	"github.com/isaacpd/costanza/pkg/util"
 )
 
 var (
 	queueMap  map[string]*Queue
-	PAGE_NEXT = "🔼"
-	PAGE_PREV = "🔽"
+	PAGE_NEXT = "◀"
+	PAGE_PREV = "▶"
 
 	emojiMap = map[string]int{
-		"🔼": 1,
-		"🔽": -1,
+		"◀": 1,
+		"▶": -1,
 		"⬆": 1,
 		"⬇": -1,
 	}
+
+	waitingForSong bool
+	waitingMutex   sync.Mutex
+
+	spotifySong chan string
 )
 
 func init() {
@@ -129,6 +136,39 @@ func UnPause(c cmd.Context) {
 		q.UnPause()
 		markComplete(c)
 	})
+}
+
+func Follow(c cmd.Context) {
+	waitingMutex.Lock()
+	defer waitingMutex.Unlock()
+	if !waitingForSong {
+		go WaitAndQueueSong(c)
+		waitingForSong = true
+	}
+	song, err := spotify.GetCurrentlyPlayingSong()
+	if err != nil {
+		c.Send("Please authenticate to spotify befo")
+	}
+}
+
+func WaitAndQueueSong(c cmd.Context) {
+	for {
+		select {
+		case song := <-spotifySong:
+			song
+			getQueue(c, func(queue *Queue) {
+				if tracks := autil.GetTrack(c.Arg); tracks != nil {
+					queue.AddTracks(tracks)
+					queue.Play(c.Author.ID)
+				} else {
+					results := youtube.Search(c.Arg)
+					lim := util.Min(5, len(results))
+					c.Send(fmt.Sprintf("Results:\n%s", results[:lim]))
+				}
+				markComplete(c)
+			})
+		}
+	}
 }
 
 func ListDir(c cmd.Context) {

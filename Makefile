@@ -22,4 +22,4 @@ $(OUT_DIR)/$(PROJECT): $(GO_FILES)
 	go build -o $(OUT_DIR)/$(PROJECT) $(BUILD_PACKAGE)
 
 install: $(OUT_DIR)/$(PROJECT)
-	$(CP) "$(OUT_DIR)\$(PROJECT)" "$(INSTALL_DIR)"
+	$(CP) "$(OUT_DIR)/$(PROJECT)" "$(INSTALL_DIR)"
