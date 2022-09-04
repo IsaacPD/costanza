@@ -35,9 +35,9 @@ func New(p1, p2 discordgo.User) *TicTacToe {
 }
 
 func HandleTTT(c cmd.Context) bool {
-	if playingTTT && toe.IsPlaying(*c.Author) && Coordinate.MatchString(c.Message.Content) {
+	if playingTTT && toe.IsPlaying(*c.Author) && Coordinate.MatchString(c.Arg) {
 		var x, y int
-		fmt.Sscanf(c.Message.Content, "%d,%d", &x, &y)
+		fmt.Sscanf(c.Arg, "%d,%d", &x, &y)
 		result, finished := toe.Move(x, y, *c.Author)
 		c.Send(result)
 		playingTTT = !finished
@@ -47,7 +47,11 @@ func HandleTTT(c cmd.Context) bool {
 }
 
 func Start(c cmd.Context) {
-	toe = New(*c.Author, *c.Message.Mentions[0])
+	if len(c.Args) != 1 {
+		c.Send("Too many users mentioned, please specify only one person you would like to play against.")
+		return
+	}
+	toe = New(*c.Author, *c.Author)
 	playingTTT = true
 	c.Send(toe.String())
 }

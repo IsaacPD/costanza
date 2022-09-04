@@ -15,7 +15,6 @@ import (
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/sound/player"
-	"github.com/isaacpd/costanza/pkg/util"
 )
 
 var NewCmd = cmd.NewCmd
@@ -23,12 +22,12 @@ var NewCmd = cmd.NewCmd
 const (
 	Isaac      = "217795612169601024"
 	Images     = "/mnt/e/Desktop/Stuffs/Images"
-	PREFIX     = "~"
 	TimeLayout = "2006 Jan 2"
 )
 
 var (
-	cmdMap = make(map[string]*cmd.Command)
+	cmdMap             = make(map[string]*cmd.Command)
+	registeredCommands []*discordgo.ApplicationCommand
 
 	Profanity = []*regexp.Regexp{
 		regexp.MustCompile(".*(f+|F+)(f*|F*)(u+|U+)(u*|U*)(c+|C+)(c*|C*)(k+|K+)(k*|K*).*"),
@@ -37,72 +36,85 @@ var (
 		regexp.MustCompile(".*(c+|C+)(c*|C*)(u+|U+)(u*|U*)(n+|N+)(n*|N*)(t+|T+)(t*|T*).*"),
 	}
 
-	Sc chan os.Signal
+	appID = "319980316309848064"
+	Sc    chan os.Signal
 )
 
-func AddCommand(cmd cmd.Command) {
+func AddCommand(cmd cmd.Command, s *discordgo.Session) {
 	for _, a := range cmd.Names {
 		cmdMap[a] = &cmd
 	}
+	c, err := s.ApplicationCommandCreate(appID, "", cmd.ApplicationCommand())
+	if err != nil {
+		logrus.Panicf("Cannot create '%v' command: %v", cmd.Names[0], err)
+	}
+	registeredCommands = append(registeredCommands, c)
 }
 
-func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
-	m.Content = strings.TrimSpace(m.Content)
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-	logrus.Tracef("Received Message {%s}", m.Content)
+func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ApplicationCommandData()
+	input := strings.TrimSpace(data.Options[0].StringValue())
+	logrus.Tracef("Received Command {%+v}", data)
+	logrus.Infof("Command received %s", data.Name)
 
-	var command string
-	if strings.HasPrefix(m.Content, PREFIX) && len(m.Content) > len(PREFIX) {
-		command = m.Content[len(PREFIX):]
-		if i := strings.Index(command, util.ARG_IDENTIFIER); i != -1 {
-			command = command[:i]
-		}
-		logrus.Infof("Command received %s", command)
-	}
-
-	c, ok := cmdMap[command]
+	c, ok := cmdMap[data.Name]
 	if !ok {
 		logrus.Trace("Command not found in registered list")
 		return
 	}
 
-	send := sendClosure(s, m)
-	arg := strings.TrimSpace(util.AfterCommand(m.Content))
+	send := sendClosure(s, i)
+	arg := strings.TrimSpace(input)
 	ctx := cmd.Context{
-		Cmd:       command,
-		Arg:       arg,
-		Args:      strings.Split(arg, " "),
-		Session:   s,
-		Message:   m,
-		Author:    m.Author,
-		ChannelID: m.ChannelID,
-		GuildID:   m.GuildID,
-		Send:      send,
-		Log:       Log,
+		Cmd:         data.Name,
+		Arg:         arg,
+		Args:        strings.Split(arg, " "),
+		Session:     s,
+		Interaction: i,
+		Author:      i.Member.User,
+		ChannelID:   i.ChannelID,
+		GuildID:     i.GuildID,
+		Send:        send,
+		Ack:         sendAck(s, i),
+		Log:         Log,
 	}
 	c.Handler(ctx)
 }
 
+func HandleMessageDelete(s *discordgo.Session, m *discordgo.MessageDelete) {
+	var sb strings.Builder
+	if m.BeforeDelete != nil && !m.BeforeDelete.Author.Bot {
+		fmt.Fprintf(&sb, "%s deleted the following message \n\n %s \n\n What are you trying to hide? 🤨🤔", m.BeforeDelete.Author.Mention(), m.BeforeDelete.Content)
+		Log(s.ChannelMessageSend(m.ChannelID, sb.String()))
+	}
+}
+
+func HandleMessageUpdate(s *discordgo.Session, m *discordgo.MessageUpdate) {
+	var sb strings.Builder
+	if m.BeforeUpdate != nil && !m.BeforeUpdate.Author.Bot {
+		fmt.Fprintf(&sb, "%s updated the following message \n\n`Before:`\n%s\n\n`After:`\n%s\n\n What are you trying to hide? 🤨🤔", m.BeforeUpdate.Author.Mention(), m.BeforeUpdate.Content, m.Content)
+		Log(s.ChannelMessageSend(m.ChannelID, sb.String()))
+	}
+}
+
 func defaultCommand() cmd.Command {
 	return cmd.NewCmd(cmd.Names{""}, func(c cmd.Context) {
-		if handlePrivateMessage(c.Session, c.Message) {
-			return
-		}
+		// if handlePrivateMessage(c.Session, c.Message) {
+		// 	return
+		// }
 
 		if ttt.HandleTTT(c) {
 			return
 		}
 
-		if c.Message.Content == "Goodbye Costanza" {
+		if c.Arg == "Goodbye Costanza" {
 			c.Send("See you nerds later")
 			Sc <- os.Interrupt
 			return
 		}
 
 		for _, p := range Profanity {
-			if p.MatchString(c.Message.Content) {
+			if p.MatchString(c.Arg) {
 				c.Send("Watch your profanity " + c.Author.Username)
 			}
 		}
@@ -110,7 +122,7 @@ func defaultCommand() cmd.Command {
 		if rand.Float64() < 0.001 {
 			c.Send("Hello There @" + c.Author.Username)
 		}
-	})
+	}, "default")
 }
 
 func helpCommand() cmd.Command {
@@ -131,48 +143,21 @@ func helpCommand() cmd.Command {
 		}
 		sb.WriteString("```")
 		c.Send(sb.String())
-	})
+	}, "Help")
 }
 
-func RegisterCommands() {
+func RegisterCommands(s *discordgo.Session) {
 	// Player commands
-	AddCommand(NewCmd(cmd.Names{"back", "b"}, player.Previous))
-	AddCommand(NewCmd(cmd.Names{"play", "p"}, player.QueueTrack))
-	AddCommand(NewCmd(cmd.Names{"playnext", "pn"}, player.Play))
-	AddCommand(NewCmd(cmd.Names{"queue", "q"}, player.PrintQueue))
-	AddCommand(NewCmd(cmd.Names{"skip"}, player.Skip))
-	AddCommand(NewCmd(cmd.Names{"pause"}, player.Pause))
-	AddCommand(NewCmd(cmd.Names{"unpause"}, player.UnPause))
-	AddCommand(NewCmd(cmd.Names{"tree"}, player.ListDir))
+	AddCommand(NewCmd(cmd.Names{"back", "b"}, player.Previous, "Go to previous track"), s)
+	AddCommand(NewCmd(cmd.Names{"play", "p"}, player.QueueTrack, "Queue a track"), s)
+	AddCommand(NewCmd(cmd.Names{"playnext", "pn"}, player.Play, "Play a track"), s)
+	AddCommand(NewCmd(cmd.Names{"queue", "q"}, player.PrintQueue, "Show the queue"), s)
+	AddCommand(NewCmd(cmd.Names{"skip"}, player.Skip, "Skip a track in the queue"), s)
+	AddCommand(NewCmd(cmd.Names{"pause"}, player.Pause, "Pause the current track"), s)
+	AddCommand(NewCmd(cmd.Names{"unpause"}, player.UnPause, "Unpause the current track"), s)
+	AddCommand(NewCmd(cmd.Names{"tree"}, player.ListDir, "Print out the directory"), s)
 
 	// Misc
-	AddCommand(NewCmd(cmd.Names{"translate"}, google.Translate))
-	AddCommand(NewCmd(cmd.Names{"listen"}, nil))
-	AddCommand(NewCmd(cmd.Names{"ttt", "tictactoe"}, func(c cmd.Context) {
-		if len(c.Message.Mentions) != 1 {
-			c.Send("Too many users mentioned, please specify only one person you would like to play against.")
-			return
-		}
-		ttt.Start(c)
-	}))
-	AddCommand(NewCmd(cmd.Names{"send"}, func(c cmd.Context) {
-		f, err := os.Open(fmt.Sprintf("%s/%s", Images, c.Arg))
-		if err != nil {
-			logrus.Warnf("Cannot open file %s", c.Arg)
-			return
-		}
-		c.Log(c.Session.ChannelFileSend(c.ChannelID, c.Arg, f))
-	}))
-	AddCommand(NewCmd(cmd.Names{"speak"}, func(c cmd.Context) {
-		if c.Author.ID != Isaac {
-			return
-		}
-		err := c.Session.ChannelMessageDelete(c.ChannelID, c.Message.ID)
-		if err != nil {
-			logrus.Warnf("Couldn't delete message %s error: %s", c.Message.ID, err)
-		}
-		Log(c.Session.ChannelMessageSendTTS(c.ChannelID, c.Arg))
-	}))
 	AddCommand(NewCmd(cmd.Names{"themepicker", "tp"}, func(c cmd.Context) {
 		if c.Author.ID != Isaac {
 			return
@@ -180,7 +165,7 @@ func RegisterCommands() {
 
 		t, err := time.Parse(TimeLayout, c.Arg)
 		if err != nil {
-			Log(c.Session.ChannelMessageSend(c.ChannelID, "Invalid date, Please format it as follows: "+TimeLayout))
+			c.Send("Invalid date, Please format it as follows: " + TimeLayout)
 			return
 		}
 		users := randomUserList(c, t.UnixNano())
@@ -193,10 +178,28 @@ func RegisterCommands() {
 				currentMonth = 1
 			}
 		}
-		Log(c.Session.ChannelMessageSend(c.ChannelID, message.String()))
-	}))
-	AddCommand(helpCommand())
-	AddCommand(defaultCommand())
+		c.Send(message.String())
+	}, "Display the themepickers for the following months"), s)
+	AddCommand(NewCmd(cmd.Names{"translate"}, google.Translate, "Translate some text"), s)
+	AddCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"), s)
+	AddCommand(NewCmd(cmd.Names{"ttt", "tictactoe"}, ttt.Start, "Play tic tac toe"), s)
+	AddCommand(NewCmd(cmd.Names{"send"}, func(c cmd.Context) {
+		f, err := os.Open(fmt.Sprintf("%s/%s", Images, c.Arg))
+		if err != nil {
+			logrus.Warnf("Cannot open file %s", c.Arg)
+			return
+		}
+		c.Ack()
+		c.Log(c.Session.ChannelFileSend(c.ChannelID, c.Arg, f))
+	}, "Send a file that costanza has"), s)
+	AddCommand(NewCmd(cmd.Names{"speak"}, func(c cmd.Context) {
+		if c.Author.ID != Isaac {
+			return
+		}
+		c.Ack()
+		Log(c.Session.ChannelMessageSendTTS(c.ChannelID, c.Arg))
+	}, "Make costanza speak"), s)
+	AddCommand(helpCommand(), s)
 }
 
 func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
@@ -216,8 +219,29 @@ func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
 	return userList
 }
 
-func sendClosure(s *discordgo.Session, m *discordgo.MessageCreate) func(string) {
-	return func(send string) { Log(s.ChannelMessageSend(m.ChannelID, send)) }
+func sendClosure(s *discordgo.Session, i *discordgo.InteractionCreate) func(string) {
+	return func(send string) {
+		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: send,
+			},
+		}))
+	}
+}
+
+func sendAck(s *discordgo.Session, i *discordgo.InteractionCreate) func() {
+	return func() {
+		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponsePong,
+		}))
+	}
+}
+
+func LogError(err error) {
+	if err != nil {
+		logrus.Warnf("Error sending message: %s", err)
+	}
 }
 
 func Log(m *discordgo.Message, err error) {

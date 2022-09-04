@@ -14,7 +14,6 @@ import (
 
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/router"
-	"github.com/isaacpd/costanza/pkg/sound/player"
 )
 
 var (
@@ -32,8 +31,6 @@ func main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 	google.InitializeServices(context.Background())
-	router.RegisterCommands()
-
 	lvl, err := logrus.ParseLevel(Verbosity)
 	if err != nil {
 		fmt.Printf("error parsing log level %s\n", err)
@@ -50,10 +47,10 @@ func main() {
 	if err != nil {
 		fmt.Println("Error creating bot:", err)
 	}
+	discord.State.MaxMessageCount = 10
 
-	discord.AddHandler(router.HandleMessage)
-	discord.AddHandler(player.MessageReact)
-	discord.AddHandler(player.MessageRemove)
+	router.RegisterCommands(discord)
+	discord.AddHandler(router.HandleCommand)
 	discord.Identify.Intents = discordgo.IntentsAll
 
 	err = discord.Open()
