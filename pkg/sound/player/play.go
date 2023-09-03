@@ -59,6 +59,9 @@ func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*
 }
 
 func markComplete(c cmd.Context) {
+	if c.Message != nil {
+		return
+	}
 	logrus.Tracef("Reacted Error :%s", c.Session.MessageReactionAdd(c.ChannelID, c.Interaction.ID, util.COMPLETE))
 }
 

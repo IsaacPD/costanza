@@ -15,6 +15,7 @@ import (
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/sound/player"
+	"github.com/isaacpd/costanza/pkg/util"
 )
 
 var NewCmd = cmd.NewCmd
@@ -22,6 +23,7 @@ var NewCmd = cmd.NewCmd
 const (
 	Isaac      = "217795612169601024"
 	Images     = "/mnt/e/Desktop/Stuffs/Images"
+	PREFIX     = "~"
 	TimeLayout = "2006 Jan 2"
 )
 
@@ -49,6 +51,45 @@ func AddCommand(cmd cmd.Command, s *discordgo.Session) {
 		logrus.Panicf("Cannot create '%v' command: %v", cmd.Names[0], err)
 	}
 	registeredCommands = append(registeredCommands, c)
+}
+
+func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
+	logrus.Tracef("Received Message {%s}", m.Content)
+	m.Content = strings.TrimSpace(m.Content)
+	if m.Author.ID == s.State.User.ID {
+		return
+	}
+
+	var command string
+	if strings.HasPrefix(m.Content, PREFIX) && len(m.Content) > len(PREFIX) {
+		command = m.Content[len(PREFIX):]
+		if i := strings.Index(command, util.ARG_IDENTIFIER); i != -1 {
+			command = command[:i]
+		}
+		logrus.Infof("Command received %s", command)
+	}
+
+	c, ok := cmdMap[command]
+	if !ok {
+		logrus.Trace("Command not found in registered list")
+		return
+	}
+
+	send := sendClosureMessage(s, m)
+	arg := strings.TrimSpace(util.AfterCommand(m.Content))
+	ctx := cmd.Context{
+		Cmd:       command,
+		Arg:       arg,
+		Args:      strings.Split(arg, " "),
+		Message:   m,
+		Session:   s,
+		Author:    m.Author,
+		ChannelID: m.ChannelID,
+		GuildID:   m.GuildID,
+		Send:      send,
+		Log:       Log,
+	}
+	c.Handler(ctx)
 }
 
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -217,6 +258,10 @@ func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
 		userList[i], userList[j] = userList[j], userList[i]
 	}
 	return userList
+}
+
+func sendClosureMessage(s *discordgo.Session, m *discordgo.MessageCreate) func(string) {
+	return func(send string) { Log(s.ChannelMessageSend(m.ChannelID, send)) }
 }
 
 func sendClosure(s *discordgo.Session, i *discordgo.InteractionCreate) func(string) {

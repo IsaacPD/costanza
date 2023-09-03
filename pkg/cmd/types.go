@@ -24,6 +24,7 @@ type (
 
 		Session     *discordgo.Session
 		Interaction *discordgo.InteractionCreate
+		Message     *discordgo.MessageCreate
 		Author      *discordgo.User
 
 		ChannelID string
