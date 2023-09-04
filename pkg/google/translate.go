@@ -43,12 +43,20 @@ func isLanguage(lang string) string {
 }
 
 func Translate(c cmd.Context) (string, error) {
-	m := c.Arg
-	begin := strings.Index(m, "(") + 1
-	end := strings.Index(m, ")")
-	params := strings.Split(m[begin:end], ",")
-	target := m[strings.Index(m[end:], "to ")+end+3:]
-	lang := isLanguage(target)
+	var target, lang string
+	var params []string
+
+	if c.Message != nil {
+		m := c.Arg
+		begin := strings.Index(m, "(") + 1
+		end := strings.Index(m, ")")
+		params = strings.Split(m[begin:end], ";")
+		target = m[strings.Index(m[end:], "to ")+end+3:]
+		lang = isLanguage(target)
+	} else {
+		target = c.Interaction.ApplicationCommandData().Options[1].StringValue()
+		params = strings.Split(c.Interaction.ApplicationCommandData().Options[0].StringValue(), ";")
+	}
 	if lang != "" {
 		return translateHelper(params, lang), nil
 	} else {

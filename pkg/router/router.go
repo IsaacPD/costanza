@@ -283,12 +283,12 @@ func RegisterCommands(s *discordgo.Session) {
 	addCommand(NewCmdWithOptions(cmd.Names{"translate"}, google.Translate, "Translate some text", &discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "text",
-		Description: "The text that will be translated",
+		Description: "The text that will be translated. Use semicolons to separate multiple strings to translate.",
 		Required:    true,
 	}, &discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "target",
-		Description: "The two character language code to translate it into e.g. `fr` for french",
+		Description: "The language to translate it into (also accepts language codes e.g. `fr` for french)",
 	}))
 	addCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"))
 	addCommand(tttCommand())
