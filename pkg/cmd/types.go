@@ -33,6 +33,8 @@ type (
 
 		SendEphemeral func(message string, isEphemeral bool)
 		Ack           func()
+		Defer         func()
+		Followup      func(message string)
 		Log           func(m *discordgo.Message, err error)
 	}
 )

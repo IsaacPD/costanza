@@ -137,6 +137,13 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	var author *discordgo.User
+	if i.Member != nil {
+		author = i.Member.User
+	} else {
+		author = i.User
+	}
+
 	send := sendClosure(s, i)
 	arg := strings.TrimSpace(input)
 	ctx := cmd.Context{
@@ -145,11 +152,13 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Args:          strings.Split(arg, " "),
 		Session:       s,
 		Interaction:   i,
-		Author:        i.Member.User,
+		Author:        author,
 		ChannelID:     i.ChannelID,
 		GuildID:       i.GuildID,
 		SendEphemeral: send,
 		Ack:           sendAck(s, i),
+		Defer:         sendDefer(s, i),
+		Followup:      sendFollowup(s, i),
 		Log:           Log,
 	}
 	finalize(c, ctx)
@@ -296,6 +305,7 @@ func RegisterCommands(s *discordgo.Session) {
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "target",
 		Description: "The language to translate it into (also accepts language codes e.g. `fr` for french)",
+    Required:     true,
 	}))
 	addCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"))
 	addCommand(tttCommand())
@@ -318,6 +328,12 @@ func RegisterCommands(s *discordgo.Session) {
 		}
 		return "", nil
 	}, "Make costanza speak", &StringOption))
+	addCommand(NewCmdWithOptions(cmd.Names{"archive"}, util.Archive, "Archives a channel", &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionChannel,
+		Name:        "channel",
+		Description: "the channel to archive",
+		Required:    true,
+	}))
 	addCommand(helpCommand())
 	addCommand(defaultCommand())
 }
@@ -373,6 +389,23 @@ func sendAck(s *discordgo.Session, i *discordgo.InteractionCreate) func() {
 		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		}))
+	}
+}
+
+func sendDefer(s *discordgo.Session, i *discordgo.InteractionCreate) func() {
+	return func() {
+		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}))
+	}
+}
+
+func sendFollowup(s *discordgo.Session, i *discordgo.InteractionCreate) func(string) {
+	return func(send string) {
+		_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: send,
+		})
+		LogError(err)
 	}
 }
 
