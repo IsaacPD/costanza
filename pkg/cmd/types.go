@@ -29,9 +29,11 @@ type (
 		ChannelID string
 		GuildID   string
 
-		Send func(message string)
-		Ack  func()
-		Log  func(m *discordgo.Message, err error)
+		Send     func(message string)
+		Ack      func()
+		Defer    func()
+		Followup func(message string)
+		Log      func(m *discordgo.Message, err error)
 	}
 )
 

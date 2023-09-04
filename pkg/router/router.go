@@ -15,6 +15,7 @@ import (
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/sound/player"
+	"github.com/isaacpd/costanza/pkg/util"
 )
 
 var NewCmd = cmd.NewCmd
@@ -63,6 +64,13 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
+	var author *discordgo.User
+	if i.Member != nil {
+		author = i.Member.User
+	} else {
+		author = i.User
+	}
+
 	send := sendClosure(s, i)
 	arg := strings.TrimSpace(input)
 	ctx := cmd.Context{
@@ -71,11 +79,13 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Args:        strings.Split(arg, " "),
 		Session:     s,
 		Interaction: i,
-		Author:      i.Member.User,
+		Author:      author,
 		ChannelID:   i.ChannelID,
 		GuildID:     i.GuildID,
 		Send:        send,
 		Ack:         sendAck(s, i),
+		Defer:       sendDefer(s, i),
+		Followup:    sendFollowup(s, i),
 		Log:         Log,
 	}
 	c.Handler(ctx)
@@ -199,6 +209,7 @@ func RegisterCommands(s *discordgo.Session) {
 		c.Ack()
 		Log(c.Session.ChannelMessageSendTTS(c.ChannelID, c.Arg))
 	}, "Make costanza speak"), s)
+	AddCommand(NewCmd(cmd.Names{"archive"}, util.Archive, "Archives a channel"), s)
 	AddCommand(helpCommand(), s)
 }
 
@@ -235,6 +246,23 @@ func sendAck(s *discordgo.Session, i *discordgo.InteractionCreate) func() {
 		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponsePong,
 		}))
+	}
+}
+
+func sendDefer(s *discordgo.Session, i *discordgo.InteractionCreate) func() {
+	return func() {
+		LogError(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}))
+	}
+}
+
+func sendFollowup(s *discordgo.Session, i *discordgo.InteractionCreate) func(string) {
+	return func(send string) {
+		_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: send,
+		})
+		LogError(err)
 	}
 }
 
