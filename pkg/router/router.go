@@ -24,6 +24,7 @@ var NewCmdWithOptions = cmd.NewCmdWithOptions
 
 const (
 	Isaac      = "217795612169601024"
+	Ariana     = "427657255090126848"
 	Images     = "/mnt/e/Desktop/Stuffs/Images"
 	PREFIX     = "~"
 	TimeLayout = "2006 Jan 2"
@@ -301,7 +302,7 @@ func RegisterCommands(s *discordgo.Session) {
 		return "Done", nil
 	}, "Send a file that costanza has", &StringOption))
 	addCommand(NewCmdWithOptions(cmd.Names{"speak"}, func(c cmd.Context) (string, error) {
-		if c.Author.ID != Isaac {
+		if c.Author.ID != Isaac && c.Author.ID != Ariana {
 			return "", ErrInvalidPermission
 		}
 		Log(c.Session.ChannelMessageSendTTS(c.ChannelID, c.Arg))
