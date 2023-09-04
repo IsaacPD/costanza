@@ -110,7 +110,7 @@ func (q *Queue) Play(userID string) {
 	}
 	_, err := q.Session.State.VoiceState(q.GuildID, q.Session.State.User.ID)
 	if err != nil {
-		logrus.Warnf("Currently not in a voice connection. Attempting to rejoin")
+		logrus.Warnf("Currently not in a voice connection: %v. Attempting to rejoin", err)
 		_, err = q.Session.ChannelVoiceJoin(q.GuildID, vcID, false, false)
 		if err != nil {
 			logrus.Errorf("Could not rejoin voice channel %s", err)
@@ -170,7 +170,7 @@ func (q *Queue) String() string {
 	return q.tracks.String()
 }
 
-func (_ *Queue) GetPageNum(text string) int {
+func (*Queue) GetPageNum(text string) int {
 	lines := strings.Split(text, "\n")
 	last := lines[len(lines)-2]
 

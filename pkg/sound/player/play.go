@@ -113,7 +113,7 @@ func Previous(c cmd.Context) (string, error) {
 	if len(q.tracks) == 0 {
 		return "No track to go back to.", nil
 	}
-	return fmt.Sprintf("Playing: %s", q.tracks[q.currentTrack]), nil
+	return fmt.Sprintf("Playing: %s", q.tracks[q.currentTrack+1]), nil
 }
 
 func Skip(c cmd.Context) (string, error) {

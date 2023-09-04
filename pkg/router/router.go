@@ -125,7 +125,7 @@ func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 	var input string
-	if data.Options[0].Type == discordgo.ApplicationCommandOptionString {
+	if len(data.Options) >= 1 && data.Options[0].Type == discordgo.ApplicationCommandOptionString {
 		input = strings.TrimSpace(data.Options[0].StringValue())
 	}
 	logrus.Tracef("Received Command {%+v}", data)
