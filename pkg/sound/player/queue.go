@@ -31,7 +31,13 @@ func NewQueue(c cmd.Context) *Queue {
 }
 
 func (q *Queue) loadNextTrack() {
-	if len(q.tracks) == 0 || q.currentTrack+1 >= len(q.tracks) || q.connection.playing {
+	if len(q.tracks) == 0 || q.currentTrack+1 >= len(q.tracks) {
+		if !q.connection.playing {
+			q.connection.endConnection <- 1
+		}
+		return
+	}
+	if q.connection.playing {
 		return
 	}
 	q.currentTrack++
@@ -51,6 +57,7 @@ func (q *Queue) rotateQueue() {
 			go q.loadNextTrack()
 		case <-q.connection.endConnection:
 			logrus.Debug("Connection ended")
+			logrus.Debugf("Disconnecting from vc: %v", q.connection.voiceConnection.Disconnect())
 			return
 		}
 	}

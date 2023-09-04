@@ -247,6 +247,7 @@ func tttCommand() cmd.Command {
 				Description: "The row where you will take your turn.",
 				MinValue:    &Zero,
 				MaxValue:    2,
+				Required:    true,
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
@@ -254,6 +255,7 @@ func tttCommand() cmd.Command {
 				Description: "The row where you will take your turn.",
 				MinValue:    &Zero,
 				MaxValue:    2,
+				Required:    true,
 			},
 		},
 	})
