@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -59,15 +60,21 @@ var (
 		Required:    true,
 	}
 
+	SkipRegister bool
+
 	ErrInvalidPermission error = errors.New("invalid permission")
 	ErrInvalidTimeFormat error = errors.New("invalid date, please format it as follows: " + TimeLayout)
 )
+
+func init() {
+	flag.BoolVar(&SkipRegister, "s", false, "Skip registering commands with discord. Should only be done if there are no changes with the commands.")
+}
 
 func AddCommand(cmd cmd.Command, s *discordgo.Session) {
 	for _, a := range cmd.Names {
 		cmdMap[a] = &cmd
 	}
-	if cmd.Names[0] != "" {
+	if cmd.Names[0] != "" && !SkipRegister {
 		c, err := s.ApplicationCommandCreate(appID, "", cmd.ApplicationCommand())
 		if err != nil {
 			logrus.Panicf("Cannot create '%v' command: %v", cmd.Names[0], err)
@@ -292,13 +299,13 @@ func RegisterCommands(s *discordgo.Session) {
 	addCommand(NewCmdWithOptions(cmd.Names{"translate"}, google.Translate, "Translate some text", &discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "text",
-		Description: "The text that will be translated",
+		Description: "The text that will be translated. Use semicolons to separate multiple strings to translate.",
 		Required:    true,
 	}, &discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "target",
-		Description: "The two character language code to translate it into e.g. `fr` for french",
-		Required:    true,
+		Description: "The language to translate it into (also accepts language codes e.g. `fr` for french)",
+    Required:     true,
 	}))
 	addCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"))
 	addCommand(tttCommand())
