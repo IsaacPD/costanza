@@ -21,7 +21,7 @@ func (tl TrackList) String() string {
 func (tl TrackList) StringWithOffset(offset int) string {
 	var sb strings.Builder
 
-	sb.WriteString("```nim\n")
+	sb.WriteString("```\n")
 	for i, s := range tl {
 		fmt.Fprintf(&sb, "%d) %s\n", i+1+offset, s)
 	}

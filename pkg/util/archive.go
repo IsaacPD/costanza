@@ -156,7 +156,7 @@ func DownloadAttachments(parentDir string, attachments []*discordgo.MessageAttac
 	return errors
 }
 
-func Archive(c cmd.Context) {
+func Archive(c cmd.Context) (string, error) {
 	channelID := c.Args[0]
 
 	c.Defer()
@@ -164,7 +164,7 @@ func Archive(c cmd.Context) {
 
 	if err != nil {
 		c.Followup(fmt.Sprintf("Error reading channel error: %v", err))
-		return
+		return "", nil
 	}
 
 	var allMessages []*discordgo.Message
@@ -202,7 +202,7 @@ func Archive(c cmd.Context) {
 	if err != nil {
 		c.Followup("Error creating directory for writing")
 		logrus.Warn(err)
-		return
+		return "", nil
 	}
 
 	// Save images and remove unnecessary fields.
@@ -225,15 +225,16 @@ func Archive(c cmd.Context) {
 	if err != nil {
 		c.Followup("Error converting archiving thread to JSON format.")
 		logrus.Warn(err)
-		return
+		return "", nil
 	}
 	file, err := os.OpenFile(fmt.Sprintf("%s/messages.json", channelDirStr), os.O_CREATE|os.O_RDWR, 0700)
 	if err != nil {
 		c.Followup("Error opening file for writing")
 		logrus.Warn(err)
-		return
+		return "", nil
 	}
 	_, err = fmt.Fprint(file, string(channelJSON))
 	logrus.Trace(err)
 	c.Followup(fmt.Sprintf("Successfully archived {%d} messages from %s", len(allMessages), channel.Name))
+	return "", nil
 }

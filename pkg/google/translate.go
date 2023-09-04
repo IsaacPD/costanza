@@ -42,7 +42,7 @@ func isLanguage(lang string) string {
 	return ""
 }
 
-func Translate(c cmd.Context) {
+func Translate(c cmd.Context) (string, error) {
 	m := c.Arg
 	begin := strings.Index(m, "(") + 1
 	end := strings.Index(m, ")")
@@ -50,8 +50,8 @@ func Translate(c cmd.Context) {
 	target := m[strings.Index(m[end:], "to ")+end+3:]
 	lang := isLanguage(target)
 	if lang != "" {
-		c.Send(translateHelper(params, lang))
+		return translateHelper(params, lang), nil
 	} else {
-		c.Send(target + " is not a supported language")
+		return "", fmt.Errorf("%s is not a supported language", target)
 	}
 }

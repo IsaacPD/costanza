@@ -14,6 +14,7 @@ import (
 
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/router"
+	"github.com/isaacpd/costanza/pkg/sound/player"
 )
 
 var (
@@ -50,6 +51,9 @@ func main() {
 	discord.State.MaxMessageCount = 10
 
 	router.RegisterCommands(discord)
+	discord.AddHandler(router.HandleMessage)
+	discord.AddHandler(player.MessageReact)
+	discord.AddHandler(player.MessageRemove)
 	discord.AddHandler(router.HandleCommand)
 	discord.Identify.Intents = discordgo.IntentsAll
 
