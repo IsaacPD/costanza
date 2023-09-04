@@ -8,13 +8,14 @@ import (
 )
 
 type (
-	Handler func(c Context)
+	Handler func(c Context) (string, error)
 	Names   []string
 
 	Command struct {
 		Names   Names
 		Handler Handler
 		Help    string
+		Inputs  []*discordgo.ApplicationCommandOption
 	}
 
 	Context struct {
@@ -30,21 +31,32 @@ type (
 		ChannelID string
 		GuildID   string
 
-		Send func(message string)
-		Ack  func()
-		Log  func(m *discordgo.Message, err error)
+		SendEphemeral func(message string, isEphemeral bool)
+		Ack           func()
+		Log           func(m *discordgo.Message, err error)
 	}
 )
 
-func defaultHandler(c Context) {
-	c.Send(fmt.Sprintf("%s is not implemented yet", c.Cmd))
+func (c *Context) Send(message string) {
+	c.SendEphemeral(message, false)
+}
+
+func defaultHandler(c Context) (string, error) {
+	return "", fmt.Errorf("%s is not implemented yet", c.Cmd)
 }
 
 func NewCmd(names Names, handler Handler, help string) Command {
 	if handler == nil {
 		handler = defaultHandler
 	}
-	return Command{names, handler, help}
+	return Command{names, handler, help, nil}
+}
+
+func NewCmdWithOptions(names Names, handler Handler, help string, options ...*discordgo.ApplicationCommandOption) Command {
+	if handler == nil {
+		handler = defaultHandler
+	}
+	return Command{names, handler, help, options}
 }
 
 func (c Command) String() string {
@@ -65,13 +77,6 @@ func (c Command) ApplicationCommand() *discordgo.ApplicationCommand {
 		Name:        c.Names[0],
 		Description: c.Help,
 		Type:        discordgo.ChatApplicationCommand,
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "input",
-				Description: "input",
-				Required:    true,
-			},
-		},
+		Options:     c.Inputs,
 	}
 }
