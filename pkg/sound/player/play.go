@@ -41,11 +41,11 @@ func getQueue(c cmd.Context) *Queue {
 	return queueMap[c.GuildID]
 }
 
-func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*discordgo.VoiceConnection, error) {
+func getChannelWithUser(s *discordgo.Session, userID, guildID string) string {
 	guild, err := s.State.Guild(guildID)
 	if err != nil {
 		logrus.Errorf("Error getting channels for guild: %s", err)
-		return nil, err
+		return ""
 	}
 	var vc string
 	for _, state := range guild.VoiceStates {
@@ -54,8 +54,7 @@ func connectToFirstVoiceChannel(s *discordgo.Session, userID, guildID string) (*
 			break
 		}
 	}
-	logrus.Tracef("Voice Channel to connect to: %s", vc)
-	return s.ChannelVoiceJoin(guildID, vc, false, false)
+	return vc
 }
 
 func markComplete(c cmd.Context) {
@@ -114,7 +113,7 @@ func Previous(c cmd.Context) (string, error) {
 	if len(q.tracks) == 0 {
 		return "No track to go back to.", nil
 	}
-	return fmt.Sprintf("Playing: %s", q.tracks[q.currentTrack]), nil
+	return fmt.Sprintf("Playing: %s", q.tracks[q.currentTrack+1]), nil
 }
 
 func Skip(c cmd.Context) (string, error) {
@@ -142,6 +141,11 @@ func UnPause(c cmd.Context) (string, error) {
 		return "No tracks to resume", nil
 	}
 	return fmt.Sprintf("Resuming: %s", q.tracks[q.currentTrack]), nil
+}
+
+func Debug(c cmd.Context) (string, error) {
+	q := getQueue(c)
+	return fmt.Sprintf("```go\nqueue: {%+v}\nconnection: {%+v}\n```", *q, q.connection), nil
 }
 
 func ListDir(c cmd.Context) (string, error) {

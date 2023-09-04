@@ -125,7 +125,7 @@ func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 	var input string
-	if data.Options[0].Type == discordgo.ApplicationCommandOptionString {
+	if len(data.Options) >= 1 && data.Options[0].Type == discordgo.ApplicationCommandOptionString {
 		input = strings.TrimSpace(data.Options[0].StringValue())
 	}
 	logrus.Tracef("Received Command {%+v}", data)
@@ -247,6 +247,7 @@ func tttCommand() cmd.Command {
 				Description: "The row where you will take your turn.",
 				MinValue:    &Zero,
 				MaxValue:    2,
+				Required:    true,
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionInteger,
@@ -254,6 +255,7 @@ func tttCommand() cmd.Command {
 				Description: "The row where you will take your turn.",
 				MinValue:    &Zero,
 				MaxValue:    2,
+				Required:    true,
 			},
 		},
 	})
@@ -273,6 +275,7 @@ func RegisterCommands(s *discordgo.Session) {
 	addCommand(NewCmd(cmd.Names{"pause"}, player.Pause, "Pause the current track"))
 	addCommand(NewCmd(cmd.Names{"unpause"}, player.UnPause, "Unpause the current track"))
 	addCommand(NewCmd(cmd.Names{"tree"}, player.ListDir, "Print out the directory"))
+	addCommand(NewCmd(cmd.Names{"debug"}, player.Debug, "Debug the current player."))
 
 	// Misc
 	addCommand(NewCmdWithOptions(cmd.Names{"themepicker", "tp"}, func(c cmd.Context) (string, error) {
@@ -305,7 +308,7 @@ func RegisterCommands(s *discordgo.Session) {
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "target",
 		Description: "The language to translate it into (also accepts language codes e.g. `fr` for french)",
-    Required:     true,
+		Required:    true,
 	}))
 	addCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"))
 	addCommand(tttCommand())

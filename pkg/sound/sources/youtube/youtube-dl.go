@@ -8,10 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	WATCH_FORMAT = "http://youtube.com/watch?v=%s"
-)
-
 type (
 	Format struct {
 		Url      string  `json:"url"`
@@ -29,9 +25,8 @@ type (
 )
 
 func getDetails(id string) (videoDetails, error) {
-	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", "youtube.com/watch?v="+id)
+	cmd := exec.Command("youtube-dl", "--skip-download", "--print-json", id)
 	out, err := cmd.Output()
-	logrus.Tracef("Command err: %s output:\n%s", err, string(out))
 	if err != nil {
 		return videoDetails{}, err
 	}
@@ -58,6 +53,6 @@ func getBestAudioFormat(formats []Format) Format {
 }
 
 func cmd(id, formatID string) *exec.Cmd {
-	cmd := fmt.Sprintf("youtube-dl -f %s -o - youtube.com/watch?v=%s | ffmpeg -i - -f s16le -ar 48000 -ac 2 pipe:1", formatID, id)
+	cmd := fmt.Sprintf("youtube-dl -f %s -o - \"%s\" | ffmpeg -i - -f s16le -ar 48000 -ac 2 pipe:1", formatID, id)
 	return exec.Command("sh", "-c", cmd)
 }
