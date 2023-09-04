@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -31,8 +32,6 @@ func main() {
 	flag.Parse()
 	logrus.SetOutput(os.Stdout)
 	google.InitializeServices(context.Background())
-	router.RegisterCommands()
-
 	lvl, err := logrus.ParseLevel(Verbosity)
 	if err != nil {
 		fmt.Printf("error parsing log level %s\n", err)
@@ -44,14 +43,18 @@ func main() {
 	if Token == "" {
 		Token = os.Getenv("COSTANZA_TOKEN")
 	}
+	Token = strings.TrimSpace(Token)
 	discord, err := discordgo.New("Bot " + Token)
 	if err != nil {
 		fmt.Println("Error creating bot:", err)
 	}
+	discord.State.MaxMessageCount = 10
 
+	router.RegisterCommands(discord)
 	discord.AddHandler(router.HandleMessage)
 	discord.AddHandler(player.MessageReact)
 	discord.AddHandler(player.MessageRemove)
+	discord.AddHandler(router.HandleCommand)
 	discord.Identify.Intents = discordgo.IntentsAll
 
 	err = discord.Open()

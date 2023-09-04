@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/sirupsen/logrus"
 
 	"github.com/isaacpd/costanza/pkg/cmd"
 )
@@ -21,46 +22,82 @@ var (
 )
 
 type TicTacToe struct {
-	player1 discordgo.User
-	player2 discordgo.User
+	player1 string
+	player2 string
 	turn    bool
 	grid    [3][3]string
 }
 
 func New(p1, p2 discordgo.User) *TicTacToe {
 	var ttt TicTacToe
-	ttt.player1 = p1
-	ttt.player2 = p2
+	ttt.player1 = p1.ID
+	ttt.player2 = p2.ID
 	return &ttt
 }
 
-func HandleTTT(c cmd.Context) bool {
-	if playingTTT && toe.IsPlaying(*c.Author) && Coordinate.MatchString(c.Message.Content) {
-		var x, y int
-		fmt.Sscanf(c.Message.Content, "%d,%d", &x, &y)
-		result, finished := toe.Move(x, y, *c.Author)
-		c.Send(result)
-		playingTTT = !finished
-		return true
+func HandleTTT(c cmd.Context) (string, error) {
+	if c.Message != nil {
+		if Turn(c) {
+			return "", nil
+		}
+		return Start(c)
 	}
-	return false
+
+	option := c.Interaction.ApplicationCommandData().Options[0]
+	if option.Name == "start" {
+		return Start(c)
+	} else {
+		if Turn(c) {
+			return "", nil
+		}
+		return "", fmt.Errorf("it is not your turn or the game has not started yet")
+	}
 }
 
-func Start(c cmd.Context) {
-	toe = New(*c.Author, *c.Message.Mentions[0])
+func Turn(c cmd.Context) bool {
+	logrus.Tracef("playingTTT: %v", playingTTT)
+	if !playingTTT || !toe.IsPlaying(c.Author.ID) {
+		return false
+	}
+	var x, y int64
+	if c.Message != nil {
+		if !Coordinate.MatchString(c.Arg) {
+			return false
+		}
+		fmt.Sscanf(c.Arg, "%d,%d", &x, &y)
+	} else {
+		x = c.Interaction.ApplicationCommandData().Options[0].Options[0].IntValue()
+		y = c.Interaction.ApplicationCommandData().Options[0].Options[1].IntValue()
+	}
+	result, finished := toe.Move(int(x), int(y), *c.Author)
+	c.Send(result)
+	playingTTT = !finished
+	return true
+}
+
+func Start(c cmd.Context) (string, error) {
+	if len(c.Args) != 1 {
+		return "", fmt.Errorf("too many users mentioned, please specify only one person you would like to play against")
+	}
+	if c.Message != nil {
+		toe = New(*c.Author, *c.Message.Mentions[0])
+	} else {
+		u := c.Interaction.ApplicationCommandData().Options[0].Options[0].UserValue(c.Session)
+		toe = New(*c.Author, *u)
+	}
 	playingTTT = true
-	c.Send(toe.String())
+	return toe.String(), nil
 }
 
 func (t *TicTacToe) Move(x, y int, player discordgo.User) (string, bool) {
-	if !(t.checkValid(x, y) && t.isTurn(player)) {
-		if !t.isTurn(player) {
+	if !(t.checkValid(x, y) && t.isTurn(player.ID)) {
+		if !t.isTurn(player.ID) {
 			return fmt.Sprintf("It is not %s's turn", player.Username), false
 		}
 		return fmt.Sprintf("%d, %d is not a valid move", x, y), false
 	}
 
-	if player == t.player1 {
+	if player.ID == t.player1 {
 		t.grid[x][y] = p1
 	} else {
 		t.grid[x][y] = p2
@@ -88,11 +125,12 @@ func (t *TicTacToe) isDraw() bool {
 	return true
 }
 
-func (t *TicTacToe) IsPlaying(author discordgo.User) bool {
+func (t *TicTacToe) IsPlaying(author string) bool {
+	logrus.Tracef("author: %v, p1: %v p2: %v", author, t.player1, t.player2)
 	return author == t.player1 || author == t.player2
 }
 
-func (t *TicTacToe) isTurn(author discordgo.User) bool {
+func (t *TicTacToe) isTurn(author string) bool {
 	return (author == t.player1 && !t.turn) || (author == t.player2 && t.turn)
 }
 
