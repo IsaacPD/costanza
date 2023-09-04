@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -59,15 +60,21 @@ var (
 		Required:    true,
 	}
 
+	SkipRegister bool
+
 	ErrInvalidPermission error = errors.New("invalid permission")
 	ErrInvalidTimeFormat error = errors.New("invalid date, please format it as follows: " + TimeLayout)
 )
+
+func init() {
+	flag.BoolVar(&SkipRegister, "s", false, "Skip registering commands with discord. Should only be done if there are no changes with the commands.")
+}
 
 func AddCommand(cmd cmd.Command, s *discordgo.Session) {
 	for _, a := range cmd.Names {
 		cmdMap[a] = &cmd
 	}
-	if cmd.Names[0] != "" {
+	if cmd.Names[0] != "" && !SkipRegister {
 		c, err := s.ApplicationCommandCreate(appID, "", cmd.ApplicationCommand())
 		if err != nil {
 			logrus.Panicf("Cannot create '%v' command: %v", cmd.Names[0], err)

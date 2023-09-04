@@ -52,11 +52,11 @@ func Translate(c cmd.Context) (string, error) {
 		end := strings.Index(m, ")")
 		params = strings.Split(m[begin:end], ";")
 		target = m[strings.Index(m[end:], "to ")+end+3:]
-		lang = isLanguage(target)
 	} else {
 		target = c.Interaction.ApplicationCommandData().Options[1].StringValue()
 		params = strings.Split(c.Interaction.ApplicationCommandData().Options[0].StringValue(), ";")
 	}
+	lang = isLanguage(target)
 	if lang != "" {
 		return translateHelper(params, lang), nil
 	} else {
