@@ -309,7 +309,7 @@ func RegisterCommands(s *discordgo.Session) {
 			c.SendEphemeral("Done", true)
 		}
 		return "", nil
-	}, "Make costanza speak"))
+	}, "Make costanza speak", &StringOption))
 	addCommand(helpCommand())
 	addCommand(defaultCommand())
 }
