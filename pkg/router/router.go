@@ -298,6 +298,7 @@ func RegisterCommands(s *discordgo.Session) {
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        "target",
 		Description: "The two character language code to translate it into e.g. `fr` for french",
+		Required:    true,
 	}))
 	addCommand(NewCmd(cmd.Names{"listen"}, nil, "Listen to voice"))
 	addCommand(tttCommand())
@@ -320,7 +321,12 @@ func RegisterCommands(s *discordgo.Session) {
 		}
 		return "", nil
 	}, "Make costanza speak", &StringOption))
-	addCommand(NewCmdWithOptions(cmd.Names{"archive"}, util.Archive, "Archives a channel", &StringOption))
+	addCommand(NewCmdWithOptions(cmd.Names{"archive"}, util.Archive, "Archives a channel", &discordgo.ApplicationCommandOption{
+		Type:        discordgo.ApplicationCommandOptionChannel,
+		Name:        "channel",
+		Description: "the channel to archive",
+		Required:    true,
+	}))
 	addCommand(helpCommand())
 	addCommand(defaultCommand())
 }

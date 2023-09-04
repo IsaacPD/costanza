@@ -157,10 +157,19 @@ func DownloadAttachments(parentDir string, attachments []*discordgo.MessageAttac
 }
 
 func Archive(c cmd.Context) (string, error) {
-	channelID := c.Args[0]
-
 	c.Defer()
-	channel, err := c.Session.Channel(channelID)
+
+	var channel *discordgo.Channel
+	var err error
+	if c.Message != nil {
+		if len(c.Args[0]) == 1 {
+			c.Followup("You must provide a channel id")
+			return "", nil
+		}
+		channel, err = c.Session.Channel(c.Args[0])
+	} else {
+		channel = c.Interaction.ApplicationCommandData().Options[0].ChannelValue(c.Session)
+	}
 
 	if err != nil {
 		c.Followup(fmt.Sprintf("Error reading channel error: %v", err))
@@ -173,9 +182,9 @@ func Archive(c cmd.Context) (string, error) {
 		if len(allMessages) > 0 {
 			beforeID = allMessages[len(allMessages)-1].ID
 		}
-		messages, err := c.Session.ChannelMessages(channelID, 100, beforeID, "", "")
+		messages, err := c.Session.ChannelMessages(channel.ID, 100, beforeID, "", "")
 		if err != nil {
-			logrus.Warnf("Error reading channel messages channelID: %v, err: %v", channelID, err)
+			logrus.Warnf("Error reading channel messages channelID: %v, err: %v", channel.ID, err)
 			break
 		}
 		if len(messages) == 0 {
@@ -184,7 +193,7 @@ func Archive(c cmd.Context) (string, error) {
 		allMessages = append(allMessages, messages...)
 	}
 
-	logrus.Infof("Read {%d} messages from %s", len(allMessages), channelID)
+	logrus.Infof("Read {%d} messages from %s", len(allMessages), channel.ID)
 	logrus.Infof("First Message Time {%v}", allMessages[0].Timestamp)
 	logrus.Infof("Last Message Time {%v}", allMessages[len(allMessages)-1].Timestamp)
 
