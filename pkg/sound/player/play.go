@@ -14,10 +14,13 @@ import (
 	"github.com/isaacpd/costanza/pkg/util"
 )
 
-var (
-	queueMap  map[string]*Queue
+const (
 	PAGE_NEXT = "🔼"
 	PAGE_PREV = "🔽"
+)
+
+var (
+	queueMap = make(map[string]*Queue)
 
 	emojiMap = map[string]int{
 		"🔼": 1,
@@ -26,10 +29,6 @@ var (
 		"⬇": -1,
 	}
 )
-
-func init() {
-	queueMap = make(map[string]*Queue)
-}
 
 // getQueue gets the queue for the given key, and creates it if doesn't exist
 // returns the queue for the corresponding key and whether it was initially present or not

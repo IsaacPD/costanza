@@ -122,7 +122,47 @@ func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	finalize(c, ctx)
 }
 
+func extractOptions(options []*discordgo.ApplicationCommandInteractionDataOption) map[string]interface{} {
+	if options == nil {
+		return nil
+	}
+	optionsMap := make(map[string]interface{})
+	for _, o := range options {
+		optionsMap[o.Name] = o.Value
+		oMap := extractOptions(o.Options)
+		if oMap == nil {
+			continue
+		}
+		for k, v := range oMap {
+			optionsMap[k] = v
+		}
+	}
+	return optionsMap
+}
+
 func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	var author *discordgo.User
+	if i.Member != nil {
+		author = i.Member.User
+	} else {
+		author = i.User
+	}
+	if i.Type == discordgo.InteractionMessageComponent {
+		ctx := cmd.Context{
+			Session:     s,
+			Interaction: i,
+			Author:      author,
+			ChannelID:   i.ChannelID,
+			GuildID:     i.GuildID,
+			Ack:         sendAck(s, i),
+			Defer:       sendDefer(s, i),
+			Followup:    sendFollowup(s, i),
+			Log:         Log,
+		}
+		util.HandlePoll(ctx)
+		return
+	}
+
 	data := i.ApplicationCommandData()
 	var input string
 	if len(data.Options) >= 1 && data.Options[0].Type == discordgo.ApplicationCommandOptionString {
@@ -137,13 +177,6 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	var author *discordgo.User
-	if i.Member != nil {
-		author = i.Member.User
-	} else {
-		author = i.User
-	}
-
 	send := sendClosure(s, i)
 	arg := strings.TrimSpace(input)
 	ctx := cmd.Context{
@@ -155,6 +188,7 @@ func HandleCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		Author:        author,
 		ChannelID:     i.ChannelID,
 		GuildID:       i.GuildID,
+		Options:       extractOptions(data.Options),
 		SendEphemeral: send,
 		Ack:           sendAck(s, i),
 		Defer:         sendDefer(s, i),
@@ -337,6 +371,7 @@ func RegisterCommands(s *discordgo.Session) {
 		Description: "the channel to archive",
 		Required:    true,
 	}))
+	addCommand(util.PollCommand())
 	addCommand(helpCommand())
 	addCommand(defaultCommand())
 }

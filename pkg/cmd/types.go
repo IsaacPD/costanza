@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -31,6 +32,8 @@ type (
 		ChannelID string
 		GuildID   string
 
+		Options map[string]interface{}
+
 		SendEphemeral func(message string, isEphemeral bool)
 		Ack           func()
 		Defer         func()
@@ -38,6 +41,22 @@ type (
 		Log           func(m *discordgo.Message, err error)
 	}
 )
+
+func GetOption[T any](c *Context, name string) T {
+	v, present := c.Options[name]
+	if !present {
+		logrus.Panicf("%v option not present.", name)
+	}
+	return v.(T)
+}
+
+func GetOptionWithDefault[T any](c *Context, name string, def T) T {
+	v, present := c.Options[name]
+	if present {
+		return v.(T)
+	}
+	return def
+}
 
 func (c *Context) Send(message string) {
 	c.SendEphemeral(message, false)
