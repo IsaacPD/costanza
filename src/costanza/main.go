@@ -12,6 +12,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
 
+	"github.com/isaacpd/costanza/pkg/chat"
 	"github.com/isaacpd/costanza/pkg/google"
 	"github.com/isaacpd/costanza/pkg/router"
 	"github.com/isaacpd/costanza/pkg/sound/player"
@@ -39,6 +40,10 @@ func main() {
 	} else {
 		logrus.SetLevel(lvl)
 	}
+	err = chat.Init()
+	if err != nil {
+		logrus.Fatalf("Could not connect to ChatService: %v", err)
+	}
 
 	if Token == "" {
 		Token = os.Getenv("COSTANZA_TOKEN")
@@ -60,7 +65,7 @@ func main() {
 	err = discord.Open()
 	defer discord.Close()
 	if err != nil {
-		fmt.Println("error opening connection:", err)
+		logrus.Fatalf("error opening connection: %v", err)
 		return
 	}
 	fmt.Println("Costanza is now running 😁")

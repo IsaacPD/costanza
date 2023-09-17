@@ -1,5 +1,6 @@
 bot-token.txt
 .env
+__pycache__
 out
 *test*
 .vscode

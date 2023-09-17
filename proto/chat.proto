@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+package costanza;
+
+message ChatMessage {
+    string user = 1;
+    string content = 2;
+}
+
+service ChatService {
+    rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -20,9 +21,10 @@ type (
 	}
 
 	Context struct {
-		Cmd  string
-		Arg  string
-		Args []string
+		Cmd     string
+		Arg     string
+		Args    []string
+		Context context.Context
 
 		Session     *discordgo.Session
 		Interaction *discordgo.InteractionCreate

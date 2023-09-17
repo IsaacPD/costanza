@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/sirupsen/logrus"
 
+	"github.com/isaacpd/costanza/pkg/chat"
 	"github.com/isaacpd/costanza/pkg/cmd"
 	"github.com/isaacpd/costanza/pkg/games/ttt"
 	"github.com/isaacpd/costanza/pkg/google"
@@ -88,6 +90,27 @@ func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	m.Content = strings.TrimSpace(m.Content)
 	if m.Author.ID == s.State.User.ID {
 		return
+	}
+	for _, user := range m.Mentions {
+		if user.ID == s.State.User.ID {
+			ctx := cmd.Context{
+				Context:       context.Background(),
+				Message:       m,
+				Session:       s,
+				Author:        m.Author,
+				ChannelID:     m.ChannelID,
+				GuildID:       m.GuildID,
+				SendEphemeral: sendClosureMessage(s, m),
+				Log:           Log,
+			}
+			message, err := chat.HandleChat(ctx)
+			if err != nil {
+				ctx.Send(fmt.Sprintf("error: %v", err))
+			} else if message != "" {
+				ctx.Send(message)
+			}
+			return
+		}
 	}
 
 	var command string
