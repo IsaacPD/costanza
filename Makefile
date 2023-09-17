@@ -2,7 +2,7 @@ PROJECT=costanza
 OUT_DIR=out
 PROTO_DIR=proto
 REPOPATH ?= github.com/isaacpd/$(PROJECT)
-BUILD_PACKAGE = $(REPOPATH)/src/$(PROJECT)
+BUILD_PACKAGE = $(REPOPATH)/cmd/$(PROJECT)
 
 GOPATH ?= $(shell go env GOPATH)
 GOOS ?= $(shell go env GOOS)
