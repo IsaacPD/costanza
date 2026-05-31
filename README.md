@@ -1,7 +1,8 @@
 ## Requirements
 1. ffmpeg
 2. youtube-dl
-3. go >=1.15
+3. go >=1.25
+4. protoc, protoc-gen-go, protoc-gen-go-grpc
 
 ## Building
 ```
