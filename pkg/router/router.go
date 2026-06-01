@@ -62,7 +62,8 @@ var (
 		Required:    true,
 	}
 
-	SkipRegister bool
+	SkipRegister  bool
+	LimitRotation bool
 
 	ErrInvalidPermission error = errors.New("invalid permission")
 	ErrInvalidTimeFormat error = errors.New("invalid date, please format it as follows: " + TimeLayout)
@@ -70,6 +71,7 @@ var (
 
 func init() {
 	flag.BoolVar(&SkipRegister, "s", false, "Skip registering commands with discord. Should only be done if there are no changes with the commands.")
+	flag.BoolVar(&LimitRotation, "r", false, "Limit the themepicker rotation to only those who react to a specific message.")
 }
 
 func AddCommand(cmd cmd.Command, s *discordgo.Session) {
@@ -399,16 +401,35 @@ func RegisterCommands(s *discordgo.Session) {
 	addCommand(defaultCommand())
 }
 
+const THEMEPICKER_ROTATION = "1510985509650829504"
+const THEMEPICKER_CHANNEL = "320628218665107456"
+
 func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
 	r := rand.New(rand.NewSource(seed))
 	var userList []*discordgo.User
-	members, _ := c.Session.GuildMembers(c.GuildID, "", 1000)
-	for _, m := range members {
-		if m.User.Bot {
-			continue
+
+	if LimitRotation {
+		m, _ := c.Session.ChannelMessage(THEMEPICKER_CHANNEL, THEMEPICKER_ROTATION)
+		var users map[string]interface{}
+		for _, emojis := range m.Reactions {
+			reactions, _ := c.Session.MessageReactions(THEMEPICKER_CHANNEL, THEMEPICKER_ROTATION, emojis.Emoji.ID, 100, "", "")
+			for _, user := range reactions {
+				if _, ok := users[user.ID]; !ok {
+					userList = append(userList, user)
+					users[user.ID] = ""
+				}
+			}
 		}
-		userList = append(userList, m.User)
+	} else {
+		members, _ := c.Session.GuildMembers(c.GuildID, "", 1000)
+		for _, m := range members {
+			if m.User.Bot {
+				continue
+			}
+			userList = append(userList, m.User)
+		}
 	}
+	// Improve shuffling
 	for i := range userList {
 		j := r.Intn(i + 1)
 		userList[i], userList[j] = userList[j], userList[i]
