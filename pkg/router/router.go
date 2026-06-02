@@ -409,12 +409,22 @@ func randomUserList(c cmd.Context, seed int64) []*discordgo.User {
 	var userList []*discordgo.User
 
 	if LimitRotation {
+		logrus.Debugf("Limiting themepicker rotation")
 		m, _ := c.Session.ChannelMessage(THEMEPICKER_CHANNEL, THEMEPICKER_ROTATION)
-		var users map[string]interface{}
+		users :=  make(map[string]interface{})
+		logrus.Debugf("Parsing %d emoji reactions", len(m.Reactions))
 		for _, emojis := range m.Reactions {
-			reactions, _ := c.Session.MessageReactions(THEMEPICKER_CHANNEL, THEMEPICKER_ROTATION, emojis.Emoji.ID, 100, "", "")
+			var query string
+			if emojis.Emoji.ID == "" {
+				query = emojis.Emoji.Name
+			} else {
+				query = emojis.Emoji.Name + ":" + emojis.Emoji.ID
+			}
+			reactions, err := c.Session.MessageReactions(THEMEPICKER_CHANNEL, THEMEPICKER_ROTATION, query, 100, "", "")
+			logrus.Debugf("Parsing %d users who reacted - err: %v", len(reactions), err)
 			for _, user := range reactions {
 				if _, ok := users[user.ID]; !ok {
+					logrus.Debugf("Adding user %s to rotation", user.Username)
 					userList = append(userList, user)
 					users[user.ID] = ""
 				}
