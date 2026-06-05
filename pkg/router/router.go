@@ -107,7 +107,8 @@ func HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 			message, err := chat.HandleChat(ctx)
 			if err != nil {
-				ctx.Send(fmt.Sprintf("error: %v", err))
+				logrus.Warnf("error: %v", err)
+				ctx.Send("error talking to costanza the chat service is likely not available right now")
 			} else if message != "" {
 				ctx.Send(message)
 			}
